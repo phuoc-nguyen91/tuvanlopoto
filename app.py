@@ -112,6 +112,33 @@ else:
                 results = results.sort_values(by="gia_ban_le")
 
             st.write("---")
+            
+            # SỬA LỖI: Chỉ gửi 1 yêu cầu AI duy nhất cho tất cả kết quả
+            ai_descriptions = {}
+            if st.session_state.api_configured and not results.empty:
+                with st.expander("📝 **AI Viết Bài Giới Thiệu (Nhấn để xem)**", expanded=True):
+                    try:
+                        # Tạo một prompt gộp cho tất cả sản phẩm
+                        full_prompt = "Với vai trò là một chuyên gia marketing cho hãng lốp Linglong, hãy viết một đoạn giới thiệu sản phẩm ngắn gọn (khoảng 3-4 câu) cho từng sản phẩm dưới đây. Mỗi sản phẩm cách nhau bởi dấu '---'.\n\n"
+                        for index, row in results.iterrows():
+                            full_prompt += (
+                                f"Sản phẩm: Lốp Linglong, size {row['quy_cach']}, mã gai {row['ma_gai']}.\n"
+                                f"Thông tin thêm: Ưu điểm là '{row['uu_diem_cot_loi']}'. Phù hợp cho '{row['ung_dung_cu_the']}'.\n\n"
+                            )
+                        
+                        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                        with st.spinner("AI đang sáng tạo nội dung cho tất cả sản phẩm..."):
+                            response = model.generate_content(full_prompt)
+                            # Tách các mô tả ra
+                            descriptions = response.text.split('---')
+                            if len(descriptions) == len(results):
+                                ai_descriptions = {results.iloc[i]['ma_gai']: desc.strip() for i, desc in enumerate(descriptions)}
+                            else:
+                                # Nếu AI không trả về đúng số lượng, hiển thị toàn bộ phản hồi
+                                ai_descriptions['general'] = response.text
+                    except Exception as e:
+                        st.error(f"Lỗi khi gọi AI: {e}")
+
             st.subheader(f"Kết quả tra cứu cho \"{search_term}\"")
             
             if not results.empty:
@@ -127,29 +154,15 @@ else:
                     with col_price:
                         st.markdown(f"<div style='text-align: right; font-size: 1.2em; color: #28a745; font-weight: bold;'>{price_str}</div>", unsafe_allow_html=True)
 
-                    # THAY ĐỔI: Dùng AI để viết bài giới thiệu
-                    if st.session_state.api_configured:
-                        with st.expander("📝 **AI Viết Bài Giới Thiệu (Nhấn để xem)**"):
-                            try:
-                                model = genai.GenerativeModel('gemini-1.5-pro-latest')
-                                # Tạo prompt thông minh hơn bằng cách kết hợp dữ liệu có sẵn
-                                prompt = (
-                                    f"Với vai trò là một chuyên gia marketing cho hãng lốp Linglong, hãy viết một đoạn giới thiệu sản phẩm ngắn gọn (khoảng 3-4 câu), "
-                                    f"chuyên nghiệp và hấp dẫn cho lốp xe Linglong, size {row['quy_cach']}, mã gai {row['ma_gai']}. "
-                                    f"Trong bài viết, hãy khéo léo nhấn mạnh các ưu điểm sau: '{row['uu_diem_cot_loi']}'. "
-                                    f"Gợi ý rằng sản phẩm này phù hợp cho: '{row['ung_dung_cu_the']}'. "
-                                    f"Giữ giọng văn chuyên gia, đáng tin cậy."
-                                )
-                                
-                                with st.spinner("AI đang sáng tạo nội dung..."):
-                                    response = model.generate_content(prompt)
-                                    st.markdown(response.text)
-                            except Exception as e:
-                                st.error(f"Lỗi khi gọi AI: {e}")
+                    # Hiển thị mô tả từ AI hoặc thông tin cơ bản
+                    if ai_descriptions:
+                        desc = ai_descriptions.get(row['ma_gai'], ai_descriptions.get('general', ''))
+                        if desc:
+                            st.markdown(desc)
+                        else:
+                             st.markdown(f"**Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
                     else:
-                        # Hiển thị thông tin cơ bản nếu không có API
-                         st.markdown(f"**Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
-
+                        st.markdown(f"**Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
 
                     st.write("---")
 
