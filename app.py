@@ -113,12 +113,10 @@ else:
 
             st.write("---")
             
-            # SỬA LỖI: Chỉ gửi 1 yêu cầu AI duy nhất cho tất cả kết quả
             ai_descriptions = {}
             if st.session_state.api_configured and not results.empty:
-                with st.expander("📝 **AI Viết Bài Giới Thiệu (Nhấn để xem)**", expanded=True):
+                with st.spinner("AI đang sáng tạo nội dung..."):
                     try:
-                        # Tạo một prompt gộp cho tất cả sản phẩm
                         full_prompt = "Với vai trò là một chuyên gia marketing cho hãng lốp Linglong, hãy viết một đoạn giới thiệu sản phẩm ngắn gọn (khoảng 3-4 câu) cho từng sản phẩm dưới đây. Mỗi sản phẩm cách nhau bởi dấu '---'.\n\n"
                         for index, row in results.iterrows():
                             full_prompt += (
@@ -126,19 +124,15 @@ else:
                                 f"Thông tin thêm: Ưu điểm là '{row['uu_diem_cot_loi']}'. Phù hợp cho '{row['ung_dung_cu_the']}'.\n---\n"
                             )
                         
-                        # Sử dụng model flash để tiết kiệm và nhanh hơn
                         model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                        with st.spinner("AI đang sáng tạo nội dung cho tất cả sản phẩm..."):
-                            response = model.generate_content(full_prompt)
-                            # Tách các mô tả ra
-                            descriptions = response.text.split('---')
-                            if len(descriptions) >= len(results):
-                                ai_descriptions = {results.iloc[i]['ma_gai']: desc.strip() for i, desc in enumerate(descriptions)}
-                            else:
-                                # Nếu AI không trả về đúng số lượng, hiển thị toàn bộ phản hồi
-                                ai_descriptions['general'] = response.text
+                        response = model.generate_content(full_prompt)
+                        descriptions = response.text.split('---')
+                        if len(descriptions) >= len(results):
+                            ai_descriptions = {results.iloc[i]['ma_gai']: desc.strip() for i, desc in enumerate(descriptions)}
+                        else:
+                            ai_descriptions['general'] = response.text
                     except Exception as e:
-                        st.error(f"Lỗi khi gọi AI: {e}")
+                        st.warning(f"Không thể gọi AI: {e}")
 
             st.subheader(f"Kết quả tra cứu cho \"{search_term}\"")
             
@@ -156,16 +150,28 @@ else:
                         st.markdown(f"<div style='text-align: right; font-size: 1.2em; color: #28a745; font-weight: bold;'>{price_str}</div>", unsafe_allow_html=True)
 
                     # Hiển thị mô tả từ AI hoặc thông tin cơ bản
-                    if ai_descriptions:
-                        desc = ai_descriptions.get(row['ma_gai'], ai_descriptions.get('general', ''))
-                        if desc:
-                            st.markdown(desc)
-                        else:
-                             st.markdown(f"**Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
+                    desc = ai_descriptions.get(row['ma_gai'], ai_descriptions.get('general', ''))
+                    if desc:
+                        st.markdown(f"**📝 AI Giới Thiệu:** {desc}")
                     else:
-                        st.markdown(f"**Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
+                        st.markdown(f"**👍 Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
+                    
+                    # THÊM TÍNH NĂNG: Kêu gọi hành động
+                    st.markdown("---")
+                    st.markdown("##### **Để được tư vấn và báo giá tốt nhất, vui lòng liên hệ:**")
+                    
+                    col_cta_1, col_cta_2 = st.columns([2,1])
+                    with col_cta_1:
+                        st.markdown("📞 **HOTLINE:** **0943 24 24 24**")
+                        st.markdown("📍 **Địa chỉ:** 114 Đường Số 2, Trường Thọ, Thủ Đức, TPHCM")
+                    with col_cta_2:
+                        try:
+                            st.image("qr.jpg", width=150, caption="Quét mã để kết bạn Zalo")
+                        except Exception as e:
+                            st.info("Không tìm thấy file qr.jpg")
 
-                    st.write("---")
+                    st.markdown("<hr style='border: 2px solid #ff4b4b; border-radius: 5px;'/>", unsafe_allow_html=True)
+
 
             else:
                 st.warning("Không tìm thấy sản phẩm nào phù hợp với kích thước bạn đã nhập.")
