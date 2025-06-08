@@ -15,10 +15,10 @@ def load_tire_data():
     try:
         # Đọc file CSV với kiểu dữ liệu là 'str' (văn bản) để tránh lỗi
         df_prices_raw = pd.read_csv('BẢNG GIÁ BÁN LẺ_19_05_2025.csv', dtype=str)
+        # SỬA ĐỔI: Sử dụng file "Mã Gai LINGLONG.csv" mới
         df_magai_raw = pd.read_csv('Mã Gai LINGLONG.csv', dtype=str)
 
         # 1. XỬ LÝ BẢNG GIÁ (df_prices)
-        # SỬA LỖI: Bỏ cột 'xuat_xu' và đọc cột thứ 4 là 'gia_ban_le'
         price_cols = ['stt', 'quy_cach', 'ma_gai', 'gia_ban_le']
         num_price_cols = min(len(df_prices_raw.columns), len(price_cols))
         df_prices = df_prices_raw.iloc[:, :num_price_cols]
@@ -32,8 +32,8 @@ def load_tire_data():
             df_prices.dropna(subset=['gia_ban_le'], inplace=True)
 
         # 2. XỬ LÝ MÔ TẢ MÃ GAI (df_magai)
-        # Thêm cột 'link_hinh_anh'
-        magai_cols = ['ma_gai', 'mo_ta_gai', 'nhu_cau', 'link_hinh_anh']
+        # THÊM TÍNH NĂNG: Thêm các cột mới theo yêu cầu
+        magai_cols = ['ma_gai', 'nhu_cau', 'ung_dung_cu_the', 'uu_diem_cot_loi', 'link_hinh_anh']
         num_magai_cols = min(len(df_magai_raw.columns), len(magai_cols))
         df_magai = df_magai_raw.iloc[:, :num_magai_cols]
         df_magai.columns = magai_cols[:num_magai_cols]
@@ -41,19 +41,15 @@ def load_tire_data():
         # 3. KẾT HỢP CÁC BẢNG DỮ LIỆU
         df_master = pd.merge(df_prices, df_magai, on='ma_gai', how='left')
 
-        # Điền các giá trị còn trống
-        if 'nhu_cau' not in df_master.columns: df_master['nhu_cau'] = 'Tiêu chuẩn'
-        df_master['nhu_cau'] = df_master['nhu_cau'].fillna('Tiêu chuẩn')
-        
-        if 'mo_ta_gai' not in df_master.columns: df_master['mo_ta_gai'] = 'Gai lốp tiêu chuẩn.'
-        df_master['mo_ta_gai'] = df_master['mo_ta_gai'].fillna('Gai lốp tiêu chuẩn của Linglong.')
-
-        if 'link_hinh_anh' not in df_master.columns: df_master['link_hinh_anh'] = ''
-        df_master['link_hinh_anh'] = df_master['link_hinh_anh'].fillna('')
+        # Điền các giá trị còn trống để đảm bảo không bị lỗi
+        for col in ['nhu_cau', 'ung_dung_cu_the', 'uu_diem_cot_loi', 'link_hinh_anh']:
+            if col not in df_master.columns:
+                df_master[col] = 'Chưa có thông tin'
+            df_master[col] = df_master[col].fillna('Chưa có thông tin')
 
         # Làm sạch khoảng trắng thừa
-        for col in ['quy_cach', 'ma_gai', 'nhu_cau', 'mo_ta_gai', 'link_hinh_anh']:
-             if col in df_master.columns:
+        for col in df_master.columns:
+             if df_master[col].dtype == 'object':
                 df_master[col] = df_master[col].str.strip()
         
         return df_master
@@ -84,7 +80,7 @@ else:
 
     # --- Công cụ 1: Tra cứu giá theo size ---
     with tab_search:
-        st.header("Tra cứu giá lốp Linglong theo kích thước")
+        st.header("Tra cứu lốp Linglong theo kích thước")
         
         size_query = st.text_input(
             "Nhập kích thước lốp bạn muốn tìm:", 
@@ -105,30 +101,37 @@ else:
             
             if not results.empty:
                 st.success(f"Đã tìm thấy **{len(results)}** sản phẩm phù hợp.")
-                # Hiển thị kết quả trong các thẻ đẹp mắt
+                
+                # THAY ĐỔI: Hiển thị kết quả dạng bảng
                 for index, row in results.iterrows():
-                    with st.container():
-                        # Sử dụng st.columns để bố trí thông tin hợp lý hơn
-                        col_info, col_price = st.columns([3, 1])
-                        
-                        with col_info:
-                            st.markdown(f"##### {row['quy_cach']} - **Mã gai:** {row['ma_gai']}")
-                            st.markdown(f"**Tính năng nổi bật:** {row['mo_ta_gai']}")
-                            # SỬA LỖI: Bỏ cột 'xuat_xu'
-                            st.markdown(f"**Nhu cầu:** {row['nhu_cau']}")
-                            
-                            # Hiển thị link nếu có
-                            if 'link_hinh_anh' in row and pd.notna(row['link_hinh_anh']) and row['link_hinh_anh']:
-                                st.markdown(f"**Media:** [🖼️ Xem Hình Ảnh/Video]({row['link_hinh_anh']})")
+                    st.markdown(f"#### {row['quy_cach']} / {row['ma_gai']}")
+                    
+                    # Tạo DataFrame nhỏ để hiển thị dạng bảng
+                    price_str = f"{row['gia_ban_le']:,} VNĐ" if pd.notna(row['gia_ban_le']) else "Chưa có giá"
+                    link_str = f"[Xem Hình Ảnh/Video]({row['link_hinh_anh']})" if row['link_hinh_anh'] not in ['Chưa có thông tin', ''] else "Không có"
 
-                        with col_price:
-                            # Chỉ hiển thị giá nếu cột 'gia_ban_le' tồn tại
-                            if 'gia_ban_le' in row and pd.notna(row['gia_ban_le']):
-                                st.markdown(f"<div style='text-align: right; font-size: 1.2em; color: #28a745; font-weight: bold;'>{row['gia_ban_le']:,} VNĐ</div>", unsafe_allow_html=True)
-                            else:
-                                st.markdown("<div style='text-align: right; font-size: 1em; color: #888;'>Chưa có giá</div>", unsafe_allow_html=True)
-                        
-                        st.markdown("---")
+                    table_data = {
+                        "Thuộc tính": [
+                            "**Giá Bán Lẻ**",
+                            "Ứng dụng cụ thể",
+                            "Ưu điểm cốt lõi",
+                            "Phân loại",
+                            "Media"
+                        ],
+                        "Chi tiết": [
+                            f"**{price_str}**",
+                            row['ung_dung_cu_the'],
+                            row['uu_diem_cot_loi'],
+                            row['nhu_cau'],
+                            link_str
+                        ]
+                    }
+                    display_df = pd.DataFrame(table_data)
+                    
+                    # Hiển thị bảng bằng st.markdown để có thể format link
+                    st.markdown(display_df.to_markdown(index=False), unsafe_allow_html=True)
+                    st.write("---")
+
             else:
                 st.warning("Không tìm thấy sản phẩm nào phù hợp với kích thước bạn đã nhập.")
         else:
