@@ -15,7 +15,6 @@ def load_all_data():
     """
     try:
         # Đọc tất cả file CSV với kiểu dữ liệu là 'str' (văn bản) để tránh lỗi
-        # Điều này đảm bảo tính nhất quán trước khi xử lý
         df_prices_raw = pd.read_csv('BẢNG GIÁ BÁN LẺ_19_05_2025.csv', dtype=str)
         df_magai_raw = pd.read_csv('Mã Gai LINGLONG - Mã Gai.csv', dtype=str)
         df_xe1_raw = pd.read_csv('Tyre1.csv', dtype=str)
@@ -23,9 +22,10 @@ def load_all_data():
 
         # 1. XỬ LÝ BẢNG GIÁ (df_prices)
         price_cols = ['stt', 'quy_cach', 'ma_gai', 'xuat_xu', 'gia_ban_le']
-        # SỬA LỖI: Chỉ lấy số cột cần thiết trước khi đổi tên
-        df_prices = df_prices_raw.iloc[:, :len(price_cols)]
-        df_prices.columns = price_cols
+        # SỬA LỖI: Lấy đúng số cột có trong file và gán tên tương ứng
+        num_price_cols = min(len(df_prices_raw.columns), len(price_cols))
+        df_prices = df_prices_raw.iloc[:, :num_price_cols]
+        df_prices.columns = price_cols[:num_price_cols]
         
         if 'gia_ban_le' in df_prices.columns:
             # Chuyển cột giá thành dạng số để tính toán
@@ -37,17 +37,22 @@ def load_all_data():
 
         # 2. XỬ LÝ MÔ TẢ MÃ GAI (df_magai)
         magai_cols = ['ma_gai', 'mo_ta_gai', 'nhu_cau']
-        # SỬA LỖI: Chỉ lấy số cột cần thiết trước khi đổi tên
-        df_magai = df_magai_raw.iloc[:, :len(magai_cols)]
-        df_magai.columns = magai_cols
+        # SỬA LỖI: Lấy đúng số cột có trong file và gán tên tương ứng
+        num_magai_cols = min(len(df_magai_raw.columns), len(magai_cols))
+        df_magai = df_magai_raw.iloc[:, :num_magai_cols]
+        df_magai.columns = magai_cols[:num_magai_cols]
         
         # 3. XỬ LÝ DỮ LIỆU XE (df_xe1, df_xe2)
         xe_cols = ['hang_xe', 'mau_xe', 'doi_xe', 'quy_cach']
-        # SỬA LỖI: Xử lý từng file riêng lẻ trước khi gộp để đảm bảo đúng cột
-        df_xe1 = df_xe1_raw.iloc[:, :len(xe_cols)]
-        df_xe1.columns = xe_cols
-        df_xe2 = df_xe2_raw.iloc[:, :len(xe_cols)]
-        df_xe2.columns = xe_cols
+        # SỬA LỖI: Xử lý từng file riêng lẻ trước khi gộp
+        num_xe1_cols = min(len(df_xe1_raw.columns), len(xe_cols))
+        df_xe1 = df_xe1_raw.iloc[:, :num_xe1_cols]
+        df_xe1.columns = xe_cols[:num_xe1_cols]
+
+        num_xe2_cols = min(len(df_xe2_raw.columns), len(xe_cols))
+        df_xe2 = df_xe2_raw.iloc[:, :num_xe2_cols]
+        df_xe2.columns = xe_cols[:num_xe2_cols]
+
         df_xe = pd.concat([df_xe1, df_xe2], ignore_index=True)
         df_xe.dropna(subset=['hang_xe', 'mau_xe', 'quy_cach'], inplace=True) # Xóa các dòng thiếu thông tin cơ bản
         
@@ -55,11 +60,13 @@ def load_all_data():
         df_xe['display_name'] = df_xe['hang_xe'] + " " + df_xe['mau_xe']
 
         # 4. KẾT HỢP CÁC BẢNG DỮ LIỆU
-        # Dùng 'left' merge để giữ lại tất cả các lốp từ bảng giá, kể cả khi không có mô tả
         df_master = pd.merge(df_prices, df_magai, on='ma_gai', how='left')
 
         # Điền các giá trị còn trống để ứng dụng không bị lỗi
+        if 'nhu_cau' not in df_master.columns: df_master['nhu_cau'] = 'Tiêu chuẩn'
         df_master['nhu_cau'] = df_master['nhu_cau'].fillna('Tiêu chuẩn')
+        
+        if 'mo_ta_gai' not in df_master.columns: df_master['mo_ta_gai'] = 'Gai lốp tiêu chuẩn.'
         df_master['mo_ta_gai'] = df_master['mo_ta_gai'].fillna('Gai lốp tiêu chuẩn của Linglong.')
 
         # Làm sạch khoảng trắng thừa ở các cột chuỗi quan trọng
@@ -75,7 +82,7 @@ def load_all_data():
 
     except FileNotFoundError as e:
         st.error(f"Lỗi không tìm thấy file: **{e.filename}**. Vui lòng kiểm tra lại tên file và đảm bảo nó nằm cùng thư mục với ứng dụng.")
-        return pd.DataFrame(), pd.DataFrame() # Trả về DataFrame rỗng nếu có lỗi
+        return pd.DataFrame(), pd.DataFrame()
     except Exception as e:
         st.error(f"Đã có lỗi xảy ra trong quá trình đọc và xử lý file: {e}")
         return pd.DataFrame(), pd.DataFrame()
