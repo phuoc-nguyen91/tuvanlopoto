@@ -24,21 +24,14 @@ except Exception as e:
 def load_tire_data():
     """
     Hàm này có nhiệm vụ tải và xử lý tất cả dữ liệu cần thiết cho ứng dụng,
-    bao gồm bảng giá, mã gai và thông tin lốp theo xe.
+    bao gồm bảng giá và mã gai.
     """
     try:
         # Tải các file dữ liệu chính
         df_prices_raw = pd.read_csv('BẢNG GIÁ BÁN LẺ_19_05_2025.csv', dtype=str)
         df_magai_raw = pd.read_csv('Mã Gai LINGLONG.csv', dtype=str)
         
-        # Tải các file dữ liệu bổ sung về lốp theo xe
-        #df_xe_lop_1 = pd.read_csv('Tyre1.csv', dtype=str)
-        #df_xe_lop_2 = pd.read_csv('tyre_bosung.csv', dtype=str)
-        
-        # Hợp nhất hai file thông tin lốp theo xe
-        #df_lop_theo_xe = pd.concat([df_xe_lop_1, df_xe_lop_2], ignore_index=True)
-        # Loại bỏ các dòng trùng lặp nếu có
-        #df_lop_theo_xe.drop_duplicates(inplace=True)
+        # PHẦN LỐP THEO XE ĐÃ ĐƯỢC LOẠI BỎ THEO YÊU CẦU
 
         # XỬ LÝ BẢNG GIÁ
         price_cols = ['stt', 'quy_cach', 'ma_gai', 'gia_ban_le', 'XUẤT XỨ']
@@ -78,10 +71,10 @@ def load_tire_data():
 
     except FileNotFoundError as e:
         st.error(f"Lỗi không tìm thấy file: **{e.filename}**. Vui lòng kiểm tra lại tên file và đảm bảo file đã được tải lên.")
-        return pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame()
     except Exception as e:
         st.error(f"Đã có lỗi xảy ra khi đọc hoặc xử lý file: {e}")
-        return pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame()
 
 
 # --- PHẦN 3: KHỞI TẠO VÀ CHẠY ỨNG DỤNG ---
@@ -199,7 +192,6 @@ else:
                     "\n\n"
                     "**DỮ LIỆU SẢN PHẨM VÀ KHUYẾN MÃI:**"
                     f"\n- **Bảng giá và thông tin chi tiết sản phẩm:**\n{df_master.to_string()}\n"
-                    #f"\n- **Thông tin lốp theo xe (dùng để tham khảo khi khách hỏi xe A đi lốp nào):**\n{df_lop_theo_xe.to_string()}\n"
                     "\n- **Chương trình khuyến mãi hiện tại:** Mua 2 lốp giảm 5% trên tổng hóa đơn. Mua 4 lốp giảm 10% trên tổng hóa đơn."
                     "\n\n"
                     "**KẾT THÚC CUỘC TRÒ CHUYỆN (BẮT BUỘC):**"
