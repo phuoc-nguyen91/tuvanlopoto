@@ -41,6 +41,7 @@ def load_all_data():
         
         # 3. XỬ LÝ DỮ LIỆU XE (df_xe1, df_xe2)
         xe_cols = ['hang_xe', 'mau_xe', 'doi_xe', 'quy_cach']
+        
         num_xe1_cols = min(len(df_xe1_raw.columns), len(xe_cols))
         df_xe1 = df_xe1_raw.iloc[:, :num_xe1_cols]
         df_xe1.columns = xe_cols[:num_xe1_cols]
@@ -51,6 +52,8 @@ def load_all_data():
 
         df_xe = pd.concat([df_xe1, df_xe2], ignore_index=True)
         df_xe.dropna(subset=['hang_xe', 'mau_xe', 'quy_cach'], inplace=True)
+        
+        # Tạo cột 'display_name' để hiển thị đẹp hơn
         df_xe['display_name'] = df_xe['hang_xe'] + " " + df_xe['mau_xe']
 
         # 4. KẾT HỢP CÁC BẢNG DỮ LIỆU
@@ -120,15 +123,20 @@ else:
             with col_kich_thuoc:
                  st.text_input("3. Kích thước lốp theo xe:", value=lop_theo_xe, disabled=True, key="lop_theo_xe_display")
             
-            nhu_cau_cho_xe = df_master[df_master['quy_cach'] == lop_theo_xe]['nhu_cau'].unique()
-            if len(nhu_cau_cho_xe) == 0:
-                nhu_cau_cho_xe = df_master['nhu_cau'].unique()
+            # SỬA LỖI LOGIC: Thêm tùy chọn "Tất cả" cho nhu cầu
+            nhu_cau_list = ['Tất cả'] + sorted(df_master[df_master['quy_cach'].str.contains(lop_theo_xe, case=False, na=False)]['nhu_cau'].unique())
             
             with col_nhu_cau:
-                selected_nhu_cau = st.selectbox("4. Chọn nhu cầu chính của bạn:", sorted(nhu_cau_cho_xe), help="Êm ái, Tiết kiệm, Thể thao hay Đa dụng?")
+                selected_nhu_cau = st.selectbox("4. Chọn nhu cầu chính của bạn:", nhu_cau_list, help="Êm ái, Tiết kiệm, Thể thao hay Đa dụng?")
 
             if st.button("🔍 Tìm Lốp Ngay", type="primary", use_container_width=True):
-                results = df_master[(df_master['quy_cach'] == lop_theo_xe) & (df_master['nhu_cau'] == selected_nhu_cau)]
+                # SỬA LỖI LOGIC: Dùng .str.contains thay vì == để tìm kiếm linh hoạt hơn
+                results = df_master[df_master['quy_cach'].str.contains(lop_theo_xe, case=False, na=False)]
+                
+                # Lọc thêm theo nhu cầu nếu người dùng không chọn "Tất cả"
+                if selected_nhu_cau != 'Tất cả':
+                    results = results[results['nhu_cau'] == selected_nhu_cau]
+
                 st.success(f"Đã tìm thấy **{len(results)}** loại lốp phù hợp cho xe **{selected_hang_xe} {selected_mau_xe}**.")
                 if not results.empty:
                     for index, row in results.iterrows():
@@ -150,6 +158,7 @@ else:
 
         if size_query: # Tự động tìm kiếm khi người dùng nhập
             search_term = size_query.strip()
+            # SỬA LỖI KEYERROR: Thay "gia ban le" bằng "gia_ban_le"
             results = df_master[df_master['quy_cach'].str.contains(search_term, case=False, na=False)].sort_values(by="gia_ban_le")
             
             st.write("---")
