@@ -11,7 +11,6 @@ st.set_page_config(page_title="Công Cụ Tra Cứu Lốp Xe", layout="wide")
 def load_tire_data():
     """
     Hàm này có nhiệm vụ tải và xử lý dữ liệu lốp từ các file CSV.
-    Tab "Tư vấn theo xe" đã được loại bỏ nên không cần tải dữ liệu xe nữa.
     """
     try:
         # Đọc file CSV với kiểu dữ liệu là 'str' (văn bản) để tránh lỗi
@@ -89,9 +88,13 @@ else:
 
         if size_query: # Tự động tìm kiếm khi người dùng nhập
             search_term = size_query.strip()
-            # SỬA LỖI: Sửa "gia ban le" thành "gia_ban_le"
-            results = df_master[df_master['quy_cach'].str.contains(search_term, case=False, na=False)].sort_values(by="gia_ban_le")
+            # Tìm kiếm gần đúng và sắp xếp theo giá
+            results = df_master[df_master['quy_cach'].str.contains(search_term, case=False, na=False)]
             
+            # SỬA LỖI: Chỉ sắp xếp theo giá nếu cột 'gia_ban_le' tồn tại
+            if 'gia_ban_le' in results.columns:
+                results = results.sort_values(by="gia_ban_le")
+
             st.write("---")
             st.subheader(f"Kết quả tìm kiếm cho \"{search_term}\"")
             
@@ -109,7 +112,11 @@ else:
                             st.markdown(f"**Nhu cầu:** {row['nhu_cau']} | **Xuất xứ:** {row['xuat_xu'].title()}")
                         
                         with col_price:
-                            st.markdown(f"<div style='text-align: right; font-size: 1.2em; color: #28a745; font-weight: bold;'>{row['gia_ban_le']:,} VNĐ</div>", unsafe_allow_html=True)
+                            # SỬA LỖI: Chỉ hiển thị giá nếu cột 'gia_ban_le' tồn tại
+                            if 'gia_ban_le' in row and pd.notna(row['gia_ban_le']):
+                                st.markdown(f"<div style='text-align: right; font-size: 1.2em; color: #28a745; font-weight: bold;'>{row['gia_ban_le']:,} VNĐ</div>", unsafe_allow_html=True)
+                            else:
+                                st.markdown("<div style='text-align: right; font-size: 1em; color: #888;'>Chưa có giá</div>", unsafe_allow_html=True)
                         
                         st.markdown("---")
             else:
