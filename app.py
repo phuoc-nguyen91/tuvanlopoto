@@ -16,15 +16,16 @@ def load_all_data():
     try:
         # Đọc tất cả file CSV với kiểu dữ liệu là 'str' (văn bản) để tránh lỗi
         # Điều này đảm bảo tính nhất quán trước khi xử lý
-        df_prices = pd.read_csv('BẢNG GIÁ BÁN LẺ_19_05_2025.csv', dtype=str)
-        df_magai = pd.read_csv('Mã Gai LINGLONG - Mã Gai.csv', dtype=str)
-        # Sử dụng tên file mới mà bạn đã cung cấp
-        df_xe1 = pd.read_csv('Tyre1.csv', dtype=str)
-        df_xe2 = pd.read_csv('tyre_bosung.csv', dtype=str)
+        df_prices_raw = pd.read_csv('BẢNG GIÁ BÁN LẺ_19_05_2025.csv', dtype=str)
+        df_magai_raw = pd.read_csv('Mã Gai LINGLONG - Mã Gai.csv', dtype=str)
+        df_xe1_raw = pd.read_csv('Tyre1.csv', dtype=str)
+        df_xe2_raw = pd.read_csv('tyre_bosung.csv', dtype=str)
 
         # 1. XỬ LÝ BẢNG GIÁ (df_prices)
         price_cols = ['stt', 'quy_cach', 'ma_gai', 'xuat_xu', 'gia_ban_le']
-        df_prices.columns = price_cols[:len(df_prices.columns)] # Gán tên cột an toàn
+        # SỬA LỖI: Chỉ lấy số cột cần thiết trước khi đổi tên
+        df_prices = df_prices_raw.iloc[:, :len(price_cols)]
+        df_prices.columns = price_cols
         
         if 'gia_ban_le' in df_prices.columns:
             # Chuyển cột giá thành dạng số để tính toán
@@ -36,12 +37,18 @@ def load_all_data():
 
         # 2. XỬ LÝ MÔ TẢ MÃ GAI (df_magai)
         magai_cols = ['ma_gai', 'mo_ta_gai', 'nhu_cau']
-        df_magai.columns = magai_cols[:len(df_magai.columns)] # Gán tên cột an toàn
+        # SỬA LỖI: Chỉ lấy số cột cần thiết trước khi đổi tên
+        df_magai = df_magai_raw.iloc[:, :len(magai_cols)]
+        df_magai.columns = magai_cols
         
         # 3. XỬ LÝ DỮ LIỆU XE (df_xe1, df_xe2)
-        df_xe = pd.concat([df_xe1, df_xe2], ignore_index=True)
         xe_cols = ['hang_xe', 'mau_xe', 'doi_xe', 'quy_cach']
-        df_xe.columns = xe_cols[:len(df_xe.columns)] # Gán tên cột an toàn
+        # SỬA LỖI: Xử lý từng file riêng lẻ trước khi gộp để đảm bảo đúng cột
+        df_xe1 = df_xe1_raw.iloc[:, :len(xe_cols)]
+        df_xe1.columns = xe_cols
+        df_xe2 = df_xe2_raw.iloc[:, :len(xe_cols)]
+        df_xe2.columns = xe_cols
+        df_xe = pd.concat([df_xe1, df_xe2], ignore_index=True)
         df_xe.dropna(subset=['hang_xe', 'mau_xe', 'quy_cach'], inplace=True) # Xóa các dòng thiếu thông tin cơ bản
         
         # Tạo cột 'display_name' để hiển thị đẹp hơn
