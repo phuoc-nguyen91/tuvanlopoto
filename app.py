@@ -44,8 +44,8 @@ def load_data():
         df_magai['ma_gai'] = df_magai['ma_gai'].str.strip()
 
         # --- SỬA LỖI: Đọc tất cả các cột dưới dạng văn bản (string) ---
-        df_xe1 = pd.read_csv('xe, đời xe,lop theo xe.........xls - Tyre-1.csv', dtype=str)
-        df_xe2 = pd.read_csv('xe, đời xe,lop theo xe.........xls - tyre bổ sung.csv', dtype=str)
+        df_xe1 = pd.read_csv('Tyre1.csv', dtype=str)
+        df_xe2 = pd.read_csv('tyre_bosung.csv', dtype=str)
         df_xe = pd.concat([df_xe1, df_xe2], ignore_index=True)
         df_xe.columns = ['hang_xe', 'mau_xe', 'doi_xe', 'quy_cach'][:len(df_xe.columns)]
         df_xe.dropna(subset=['hang_xe', 'mau_xe', 'quy_cach'], inplace=True)
