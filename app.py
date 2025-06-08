@@ -14,18 +14,17 @@ def load_data():
     Streamlit sẽ lưu kết quả vào cache để không phải chạy lại mỗi lần người dùng tương tác.
     """
     try:
-        # --- Đọc bảng giá trực tiếp từ file CSV ---
-        df_prices = pd.read_csv('BẢNG GIÁ BÁN LẺ_19_05_2025.csv')
+        # --- SỬA LỖI: Đọc tất cả các cột dưới dạng văn bản (string) để tránh lỗi kiểu dữ liệu ---
+        df_prices = pd.read_csv('BẢNG GIÁ BÁN LẺ_19_05_2025.csv', dtype=str)
         
-        # SỬA LỖI: Gán tên cột một cách an toàn để tránh lỗi "Length mismatch"
+        # Gán tên cột một cách an toàn để tránh lỗi "Length mismatch"
         price_cols = ['stt', 'quy_cach', 'ma_gai', 'xuat_xu', 'gia_ban_le']
-        # Gán tên cho số cột thực tế có trong file
         df_prices.columns = price_cols[:len(df_prices.columns)]
         
         # Kiểm tra và dọn dẹp dữ liệu giá nếu cột tồn tại
         if 'gia_ban_le' in df_prices.columns:
-            df_prices['gia_ban_le'] = df_prices['gia_ban_le'].astype(str).str.replace(r'[^\d]', '', regex=True)
-            df_prices['gia_ban_le'] = pd.to_numeric(df_prices['gia_ban_le'], errors='coerce')
+            # Thay thế các ký tự không phải số và chuyển thành dạng số
+            df_prices['gia_ban_le'] = pd.to_numeric(df_prices['gia_ban_le'].str.replace(r'[^\d]', '', regex=True), errors='coerce')
             df_prices.dropna(subset=['gia_ban_le'], inplace=True)
         
         # Dọn dẹp các cột khác
@@ -36,16 +35,17 @@ def load_data():
         if 'xuat_xu' in df_prices.columns:
             df_prices['xuat_xu'] = df_prices['xuat_xu'].str.strip()
 
-        # Tải các file CSV còn lại
-        df_magai = pd.read_csv('Mã Gai LINGLONG - Mã Gai.csv')
+        # --- SỬA LỖI: Đọc tất cả các cột dưới dạng văn bản (string) ---
+        df_magai = pd.read_csv('Mã Gai LINGLONG - Mã Gai.csv', dtype=str)
         expected_cols = ['ma_gai', 'mo_ta_gai', 'nhu_cau']
         num_cols_to_use = min(len(df_magai.columns), len(expected_cols))
         df_magai = df_magai.iloc[:, :num_cols_to_use]
         df_magai.columns = expected_cols[:num_cols_to_use]
         df_magai['ma_gai'] = df_magai['ma_gai'].str.strip()
 
-        df_xe1 = pd.read_csv('xe, đời xe,lop theo xe.........xls - Tyre-1.csv')
-        df_xe2 = pd.read_csv('xe, đời xe,lop theo xe.........xls - tyre bổ sung.csv')
+        # --- SỬA LỖI: Đọc tất cả các cột dưới dạng văn bản (string) ---
+        df_xe1 = pd.read_csv('xe, đời xe,lop theo xe.........xls - Tyre-1.csv', dtype=str)
+        df_xe2 = pd.read_csv('xe, đời xe,lop theo xe.........xls - tyre bổ sung.csv', dtype=str)
         df_xe = pd.concat([df_xe1, df_xe2], ignore_index=True)
         df_xe.columns = ['hang_xe', 'mau_xe', 'doi_xe', 'quy_cach'][:len(df_xe.columns)]
         df_xe.dropna(subset=['hang_xe', 'mau_xe', 'quy_cach'], inplace=True)
