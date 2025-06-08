@@ -4,42 +4,34 @@ import re
 import google.generativeai as genai
 
 # --- PHẦN 1: CẤU HÌNH TRANG WEB ---
-st.set_page_config(page_title="Công Cụ Tư Vấn Lốp Xe Linglong", layout="wide")
+st.set_page_config(page_title="Công Cụ Tra Cứu Lốp Xe", layout="wide")
 
 # --- PHẦN 1.5: CẤU HÌNH API AN TOÀN VỚI STREAMLIT SECRETS ---
-# LƯU Ý: Để sử dụng, bạn cần thêm API Key của Google vào Streamlit Secrets
-# Tạo một file secrets.toml trong thư mục .streamlit với nội dung:
-# google_api_key = "API_KEY_CUA_BAN"
 api_configured = False
 try:
     if 'google_api_key' in st.secrets:
         genai.configure(api_key=st.secrets["google_api_key"])
         api_configured = True
 except Exception as e:
-    # In ra lỗi để dễ dàng debug nếu có sự cố
     print(f"Lỗi cấu hình API: {e}")
+
 
 # --- PHẦN 2: TẢI VÀ XỬ LÝ DỮ LIỆU ---
 @st.cache_data
 def load_tire_data():
     """
-    Hàm này có nhiệm vụ tải và xử lý tất cả dữ liệu cần thiết cho ứng dụng,
-    bao gồm bảng giá và mã gai.
+    Hàm này có nhiệm vụ tải và xử lý dữ liệu lốp từ các file CSV.
     """
     try:
-        # Tải các file dữ liệu chính
         df_prices_raw = pd.read_csv('BẢNG GIÁ BÁN LẺ_19_05_2025.csv', dtype=str)
         df_magai_raw = pd.read_csv('Mã Gai LINGLONG.csv', dtype=str)
-        
-        # PHẦN LỐP THEO XE ĐÃ ĐƯỢC LOẠI BỎ THEO YÊU CẦU
 
         # XỬ LÝ BẢNG GIÁ
-        price_cols = ['stt', 'quy_cach', 'ma_gai', 'gia_ban_le', 'XUẤT XỨ']
+        price_cols = ['stt', 'quy_cach', 'ma_gai', 'gia_ban_le']
         df_prices = df_prices_raw.iloc[:, :len(price_cols)]
         df_prices.columns = price_cols
         
         if 'gia_ban_le' in df_prices.columns:
-            # Chuyển đổi cột giá sang dạng số, xử lý các ký tự không phải số
             df_prices['gia_ban_le'] = pd.to_numeric(
                 df_prices['gia_ban_le'].str.replace(r'[^\d]', '', regex=True), 
                 errors='coerce'
@@ -51,11 +43,11 @@ def load_tire_data():
         df_magai = df_magai_raw.iloc[:, :len(magai_cols)]
         df_magai.columns = magai_cols
         
-        # KẾT HỢP DỮ LIỆU GIÁ VÀ MÃ GAI
+        # KẾT HỢP DỮ LIỆU
         df_master = pd.merge(df_prices, df_magai, on='ma_gai', how='left')
 
         # Điền và làm sạch dữ liệu
-        for col in ['nhu_cau', 'ung_dung_cu_the', 'uu_diem_cot_loi', 'link_hinh_anh', 'XUẤT XỨ']:
+        for col in ['nhu_cau', 'ung_dung_cu_the', 'uu_diem_cot_loi', 'link_hinh_anh']:
             if col not in df_master.columns:
                 df_master[col] = 'Chưa có thông tin'
             df_master[col] = df_master[col].fillna('Chưa có thông tin')
@@ -64,16 +56,15 @@ def load_tire_data():
              if df_master[col].dtype == 'object':
                 df_master[col] = df_master[col].str.strip()
         
-        # Tạo cột 'base_size' để dễ dàng tìm kiếm theo kích thước cơ bản
         df_master['base_size'] = df_master['quy_cach'].str.split(' ').str[0]
 
         return df_master
 
     except FileNotFoundError as e:
-        st.error(f"Lỗi không tìm thấy file: **{e.filename}**. Vui lòng kiểm tra lại tên file và đảm bảo file đã được tải lên.")
+        st.error(f"Lỗi không tìm thấy file: **{e.filename}**. Vui lòng kiểm tra lại tên file.")
         return pd.DataFrame()
     except Exception as e:
-        st.error(f"Đã có lỗi xảy ra khi đọc hoặc xử lý file: {e}")
+        st.error(f"Đã có lỗi xảy ra khi đọc file: {e}")
         return pd.DataFrame()
 
 
@@ -83,11 +74,10 @@ df_master = load_tire_data()
 st.title("️🚗 BỘ CÔNG CỤ TƯ VẤN LỐP XE LINGLONG")
 st.markdown("Xây dựng bởi **Chuyên Gia Lốp Thầm Lặng** - Dành cho những lựa chọn sáng suốt.")
 
-# Kiểm tra xem dữ liệu đã được tải thành công chưa
 if df_master.empty:
     st.warning("Không thể khởi động ứng dụng do lỗi tải dữ liệu. Vui lòng kiểm tra lại thông báo lỗi ở trên.")
 else:
-    # Tạo các tab cho các công cụ khác nhau
+    # THÊM TÍNH NĂNG: Thêm Tab Chatbot
     tab_search, tab_chatbot, tab_cost = st.tabs([
         "**🔍 Tra Cứu Lốp Theo Size**", 
         "**🤖 Chat Với Trợ Lý AI**",
@@ -111,7 +101,6 @@ else:
             search_term = size_query
             results = df_master[df_master['base_size'] == search_term].copy()
             
-            # Sắp xếp kết quả theo giá bán để khách hàng dễ so sánh
             if 'gia_ban_le' in results.columns:
                 results = results.sort_values(by="gia_ban_le")
 
@@ -121,17 +110,14 @@ else:
             if not results.empty:
                 st.success(f"Đã tìm thấy **{len(results)}** sản phẩm phù hợp.")
                 
-                # Hiển thị kết quả một cách trực quan
                 for index, row in results.iterrows():
                     price_str = f"{row['gia_ban_le']:,} VNĐ" if pd.notna(row['gia_ban_le']) else "Chưa có giá"
                     col_title, col_price = st.columns([3, 1])
                     with col_title:
-                        st.markdown(f"#### {row['quy_cach']} / **{row['ma_gai']}** (Xuất xứ: *{row['XUẤT XỨ']}*)")
+                        st.markdown(f"#### {row['quy_cach']} / {row['ma_gai']}")
                     with col_price:
                         st.markdown(f"<div style='text-align: right; font-size: 1.2em; color: #28a745; font-weight: bold;'>{price_str}</div>", unsafe_allow_html=True)
                     st.markdown(f"**👍 Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
-                    
-                    # Hiển thị báo giá khuyến mãi nếu có giá
                     if pd.notna(row['gia_ban_le']):
                         with st.container():
                             st.markdown("🎁 **Báo giá khuyến mãi:**")
@@ -144,7 +130,6 @@ else:
                                 st.markdown(f"&nbsp;&nbsp;&nbsp;• Mua 4 lốp (giảm 10%): **<span style='color: #ff4b4b;'>{price_for_4:,.0f} VNĐ</span>**", unsafe_allow_html=True)
                     st.markdown("---")
 
-                # Thông tin liên hệ và kêu gọi hành động (Call To Action)
                 st.markdown("##### **Để được tư vấn và báo giá tốt nhất, vui lòng liên hệ:**")
                 col_cta_1, col_cta_2 = st.columns([2,1])
                 with col_cta_1:
@@ -154,7 +139,7 @@ else:
                 with col_cta_2:
                     try:
                         st.image("qr.jpg", width=150, caption="Quét mã để kết bạn Zalo")
-                    except Exception:
+                    except Exception as e:
                         st.info("Không tìm thấy file qr.jpg")
                 st.markdown("<hr style='border: 2px solid #ff4b4b; border-radius: 5px;'/>", unsafe_allow_html=True)
             else:
@@ -162,18 +147,17 @@ else:
         else:
             st.info("Vui lòng chọn một kích thước lốp từ danh sách ở trên để bắt đầu tra cứu.")
 
-    # --- Công cụ 2: Chatbot AI Nâng Cao ---
+    # --- Công cụ 2: Chatbot ---
     with tab_chatbot:
-        st.header("Trợ Lý AI Tư Vấn Lốp Xe Chuyên Sâu")
+        st.header("Trợ Lý AI Tư Vấn Lốp Xe")
 
         if not api_configured:
-            st.error("Tính năng Chatbot yêu cầu API Key của Google. Vui lòng cấu hình trong Streamlit Secrets để sử dụng.")
+            st.warning("Tính năng Chatbot yêu cầu API Key. Vui lòng cấu hình trong Streamlit Secrets để sử dụng.")
         else:
-            # Khởi tạo mô hình và lịch sử chat nếu chưa có
+            # Khởi tạo mô hình và lịch sử chat
             model = genai.GenerativeModel('gemini-1.5-pro-latest')
             if "chat_session" not in st.session_state:
-                # --- SYSTEM PROMPT ĐÃ ĐƯỢC NÂNG CẤP HOÀN TOÀN ---
-                # Đây là "bộ não" của Chatbot, chứa đựng tất cả kiến thức và chiến lược bán hàng.
+                # Cung cấp "bộ não" cho chatbot
                 system_prompt = (
                     "**BỐI CẢNH:** Bạn là một chuyên gia tư vấn bán hàng cấp cao, am hiểu sâu sắc về sản phẩm lốp xe Linglong tại thị trường Việt Nam. Bạn đang chat với khách hàng qua Messenger. Mục tiêu cuối cùng là chốt đơn hoặc lấy được thông tin liên hệ của khách hàng."
                     "\n\n"
@@ -199,25 +183,19 @@ else:
                     "\n- **Mẫu 1 (Xin SĐT):** 'Để em có thể tư vấn chính xác và báo giá lăn bánh tốt nhất cho mình, anh/chị có thể cho em xin số điện thoại được không ạ?'"
                     "\n- **Mẫu 2 (Mời đến cửa hàng):** 'Nếu có thời gian, em mời anh/chị ghé qua cửa hàng bên em tại 114 Đường Số 2, Trường Thọ, Thủ Đức, TPHCM để xem lốp trực tiếp và được hỗ trợ tốt nhất ạ.'"
                 )
-                
-                # Bắt đầu phiên chat với prompt hệ thống và lời chào mở đầu
-                st.session_state.chat_session = model.start_chat(history=[
-                    {"role": "user", "parts": [system_prompt]}, 
-                    {"role": "model", "parts": ["Chào bạn, tôi là Trợ lý AI của Lốp Xe Linglong. Tôi có thể giúp gì cho bạn ngay hôm nay ạ?"]}
-                ])
+                st.session_state.chat_session = model.start_chat(history=[{"role": "user", "parts": [system_prompt]}, {"role": "model", "parts": ["Chào bạn, tôi là trợ lý ảo của Lốp Xe Linglong. Tôi có thể giúp gì cho bạn hôm nay?"]}])
 
-            # Hiển thị lịch sử chat (bỏ qua prompt hệ thống)
-            for message in st.session_state.chat_session.history[1:]: 
+            # Hiển thị lịch sử chat
+            for message in st.session_state.chat_session.history[1:]: # Bỏ qua system prompt
                 with st.chat_message(name="assistant" if message.role == "model" else "user"):
                     st.markdown(message.parts[0].text)
 
             # Ô nhập liệu của người dùng
-            if prompt := st.chat_input("Nhập câu hỏi của khách hàng vào đây..."):
+            if prompt := st.chat_input("Hỏi về sản phẩm, giá cả, khuyến mãi..."):
                 with st.chat_message("user"):
                     st.markdown(prompt)
                 
                 with st.spinner("Trợ lý AI đang soạn câu trả lời..."):
-                    # Gửi câu hỏi của người dùng và nhận câu trả lời từ mô hình
                     response = st.session_state.chat_session.send_message(prompt)
                     with st.chat_message("assistant"):
                         st.markdown(response.text)
@@ -227,19 +205,16 @@ else:
     with tab_cost:
         st.header("Ước tính chi phí sử dụng lốp trên mỗi Kilômét")
         
-        col1_cost, col2_cost = st.columns(2)
+        col1_cost, col_cost = st.columns(2)
         with col1_cost:
             gia_lop = st.number_input("Nhập giá 1 lốp xe (VNĐ):", min_value=0, step=100000)
             tuoi_tho = st.number_input("Tuổi thọ dự kiến của lốp (km):", min_value=10000, step=5000, value=45000, 
-                                     help="Thông thường, lốp xe du lịch đi được từ 40,000 km đến 70,000 km.")
-        with col2_cost:
-            st.write("")
-            st.write("")
+                                     help="Thông thường, lốp xe đi được từ 40,000 km đến 70,000 km.")
+        with col_cost:
             if gia_lop > 0 and tuoi_tho > 0:
                 chi_phi_per_km = gia_lop / tuoi_tho
                 st.metric(label="CHI PHÍ ƯỚC TÍNH MỖI KM", 
                           value=f"{chi_phi_per_km:,.2f} VNĐ / km",
-                          help="Chi phí này chỉ mang tính tham khảo và có thể thay đổi tùy điều kiện vận hành.")
+                          help="Chi phí này chỉ mang tính tham khảo.")
             else:
-                st.info("Nhập giá và tuổi thọ dự kiến để xem chi phí ước tính.")
-
+                st.info("Nhập giá và tuổi thọ dự kiến để xem chi phí.")
