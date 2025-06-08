@@ -111,8 +111,8 @@ else:
         # Chỉ thực hiện tìm kiếm khi người dùng đã chọn một size cụ thể
         if size_query != "--- Chọn hoặc tìm size lốp ---":
             search_term = size_query
-            # Tìm kiếm chính xác theo size đã chọn
-            results = df_master[df_master['quy_cach'] == search_term]
+            # SỬA LỖI: Đảm bảo tìm tất cả các mã gai cho cùng một size
+            results = df_master[df_master['quy_cach'] == search_term].copy()
             
             if 'gia_ban_le' in results.columns:
                 results = results.sort_values(by="gia_ban_le")
