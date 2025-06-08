@@ -96,15 +96,23 @@ else:
     with tab_search:
         st.header("Tra cứu lốp Linglong theo kích thước")
         
-        size_query = st.text_input(
-            "Nhập kích thước lốp bạn muốn tìm:", 
-            placeholder="Ví dụ: 215/55R17 hoặc 185R14C"
+        # SỬA ĐỔI: Thay thế text_input bằng selectbox
+        # Tạo danh sách các size lốp duy nhất và đã được sắp xếp
+        unique_sizes = sorted(df_master['quy_cach'].unique())
+        # Thêm một lựa chọn mặc định vào đầu danh sách
+        options = ["--- Chọn hoặc tìm size lốp ---"] + unique_sizes
+        
+        size_query = st.selectbox(
+            "Chọn kích thước lốp bạn muốn tìm:", 
+            options=options,
+            help="Bạn có thể gõ để tìm kiếm size trong danh sách."
         )
 
-        if size_query: # Tự động tìm kiếm khi người dùng nhập
-            search_term = size_query.strip()
-            # Tìm kiếm gần đúng và sắp xếp theo giá
-            results = df_master[df_master['quy_cach'].str.contains(search_term, case=False, na=False)]
+        # Chỉ thực hiện tìm kiếm khi người dùng đã chọn một size cụ thể
+        if size_query != "--- Chọn hoặc tìm size lốp ---":
+            search_term = size_query
+            # Tìm kiếm chính xác theo size đã chọn
+            results = df_master[df_master['quy_cach'] == search_term]
             
             if 'gia_ban_le' in results.columns:
                 results = results.sort_values(by="gia_ban_le")
@@ -187,18 +195,18 @@ else:
             else:
                 st.warning("Không tìm thấy sản phẩm nào phù hợp với kích thước bạn đã nhập.")
         else:
-            st.info("Nhập vào kích thước lốp ở trên để bắt đầu tra cứu.")
+            st.info("Vui lòng chọn một kích thước lốp từ danh sách ở trên để bắt đầu tra cứu.")
 
     # --- Công cụ 2: Tính chi phí ---
     with tab_cost:
         st.header("Ước tính chi phí sử dụng lốp trên mỗi Kilômét")
         
-        col1_cost, col2_cost = st.columns(2)
+        col1_cost, col_cost = st.columns(2)
         with col1_cost:
             gia_lop = st.number_input("Nhập giá 1 lốp xe (VNĐ):", min_value=0, step=100000)
             tuoi_tho = st.number_input("Tuổi thọ dự kiến của lốp (km):", min_value=10000, step=5000, value=45000, 
                                      help="Thông thường, lốp xe đi được từ 40,000 km đến 70,000 km.")
-        with col2_cost:
+        with col_cost:
             if gia_lop > 0 and tuoi_tho > 0:
                 chi_phi_per_km = gia_lop / tuoi_tho
                 st.metric(label="CHI PHÍ ƯỚC TÍNH MỖI KM", 
