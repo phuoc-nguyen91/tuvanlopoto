@@ -4,7 +4,7 @@ import re
 import google.generativeai as genai
 
 # --- PHẦN 1: CẤU HÌNH TRANG WEB ---
-st.set_page_config(page_title="Công Cụ Tra Cứu Lốp Xe V1", layout="wide")
+st.set_page_config(page_title="Công Cụ Tra Cứu Lốp Xe", layout="wide")
 
 # --- PHẦN 1.5: CẤU HÌNH API AN TOÀN VỚI STREAMLIT SECRETS ---
 # Code sẽ cố gắng lấy API key từ trình quản lý bí mật của Streamlit
