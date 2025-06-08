@@ -115,24 +115,24 @@ else:
             
             ai_descriptions = {}
             if st.session_state.api_configured and not results.empty:
-                with st.spinner("AI đang sáng tạo nội dung..."):
-                    try:
-                        full_prompt = "Với vai trò là một chuyên gia marketing cho hãng lốp Linglong, hãy viết một đoạn giới thiệu sản phẩm ngắn gọn (khoảng 3-4 câu) cho từng sản phẩm dưới đây. Mỗi sản phẩm cách nhau bởi dấu '---'.\n\n"
-                        for index, row in results.iterrows():
-                            full_prompt += (
-                                f"Sản phẩm: Lốp Linglong, size {row['quy_cach']}, mã gai {row['ma_gai']}.\n"
-                                f"Thông tin thêm: Ưu điểm là '{row['uu_diem_cot_loi']}'. Phù hợp cho '{row['ung_dung_cu_the']}'.\n---\n"
-                            )
-                        
-                        model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                        response = model.generate_content(full_prompt)
-                        descriptions = response.text.split('---')
-                        if len(descriptions) >= len(results):
-                            ai_descriptions = {results.iloc[i]['ma_gai']: desc.strip() for i, desc in enumerate(descriptions)}
-                        else:
-                            ai_descriptions['general'] = response.text
-                    except Exception as e:
-                        st.warning(f"Không thể gọi AI: {e}")
+                # SỬA ĐỔI: Bỏ spinner để "giấu" AI
+                try:
+                    full_prompt = "Với vai trò là một chuyên gia marketing cho hãng lốp Linglong, hãy viết một đoạn giới thiệu sản phẩm ngắn gọn (khoảng 3-4 câu) cho từng sản phẩm dưới đây. Mỗi sản phẩm cách nhau bởi dấu '---'.\n\n"
+                    for index, row in results.iterrows():
+                        full_prompt += (
+                            f"Sản phẩm: Lốp Linglong, size {row['quy_cach']}, mã gai {row['ma_gai']}.\n"
+                            f"Thông tin thêm: Ưu điểm là '{row['uu_diem_cot_loi']}'. Phù hợp cho '{row['ung_dung_cu_the']}'.\n---\n"
+                        )
+                    
+                    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+                    response = model.generate_content(full_prompt)
+                    descriptions = response.text.split('---')
+                    if len(descriptions) >= len(results):
+                        ai_descriptions = {results.iloc[i]['ma_gai']: desc.strip() for i, desc in enumerate(descriptions)}
+                    else:
+                        ai_descriptions['general'] = response.text
+                except Exception as e:
+                    st.warning(f"Không thể gọi AI: {e}")
 
             st.subheader(f"Kết quả tra cứu cho \"{search_term}\"")
             
@@ -152,25 +152,27 @@ else:
                     # Hiển thị mô tả từ AI hoặc thông tin cơ bản
                     desc = ai_descriptions.get(row['ma_gai'], ai_descriptions.get('general', ''))
                     if desc:
-                        st.markdown(f"**📝 AI Giới Thiệu:** {desc}")
+                        # SỬA ĐỔI: Bỏ nhãn "AI Giới Thiệu"
+                        st.markdown(f"{desc}")
                     else:
                         st.markdown(f"**👍 Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
                     
-                    # THÊM TÍNH NĂNG: Kêu gọi hành động
                     st.markdown("---")
-                    st.markdown("##### **Để được tư vấn và báo giá tốt nhất, vui lòng liên hệ:**")
-                    
-                    col_cta_1, col_cta_2 = st.columns([2,1])
-                    with col_cta_1:
-                        st.markdown("📞 **HOTLINE:** **0943 24 24 24**")
-                        st.markdown("📍 **Địa chỉ:** 114 Đường Số 2, Trường Thọ, Thủ Đức, TPHCM")
-                    with col_cta_2:
-                        try:
-                            st.image("qr.jpg", width=150, caption="Quét mã để kết bạn Zalo")
-                        except Exception as e:
-                            st.info("Không tìm thấy file qr.jpg")
 
-                    st.markdown("<hr style='border: 2px solid #ff4b4b; border-radius: 5px;'/>", unsafe_allow_html=True)
+                # SỬA ĐỔI: Di chuyển CTA ra ngoài vòng lặp
+                st.markdown("##### **Để được tư vấn và báo giá tốt nhất, vui lòng liên hệ:**")
+                
+                col_cta_1, col_cta_2 = st.columns([2,1])
+                with col_cta_1:
+                    st.markdown("📞 **HOTLINE:** **0943 24 24 24**")
+                    st.markdown("📍 **Địa chỉ:** 114 Đường Số 2, Trường Thọ, Thủ Đức, TPHCM")
+                with col_cta_2:
+                    try:
+                        st.image("qr.jpg", width=150, caption="Quét mã để kết bạn Zalo")
+                    except Exception as e:
+                        st.info("Không tìm thấy file qr.jpg")
+
+                st.markdown("<hr style='border: 2px solid #ff4b4b; border-radius: 5px;'/>", unsafe_allow_html=True)
 
 
             else:
