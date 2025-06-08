@@ -89,7 +89,7 @@ else:
 
         if size_query: # Tự động tìm kiếm khi người dùng nhập
             search_term = size_query.strip()
-            # Tìm kiếm gần đúng và sắp xếp theo giá
+            # SỬA LỖI: Sửa "gia ban le" thành "gia_ban_le"
             results = df_master[df_master['quy_cach'].str.contains(search_term, case=False, na=False)].sort_values(by="gia_ban_le")
             
             st.write("---")
