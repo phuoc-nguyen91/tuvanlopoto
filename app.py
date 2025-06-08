@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import re
 import pypdf # Streamlit Cloud đã có sẵn thư viện này
+import io
 
 # --- PHẦN 1: XỬ LÝ VÀ TẢI DỮ LIỆU ---
-# (Phần code này sẽ được streamlit cache lại để chạy nhanh hơn)
 @st.cache_data
 def load_data():
     """
@@ -21,20 +21,37 @@ def load_data():
             st.error(f"Lỗi: Không tìm thấy file {file_path}. Vui lòng đảm bảo file này nằm cùng thư mục với file app.py")
             return pd.DataFrame()
 
-        # Dùng regex để tìm các dòng dữ liệu hợp lệ
-        # Mẫu regex tìm: (số),"(quy cách)","(mã gai)","(xuất xứ)","(giá)"
-        # Regex được cải tiến để xử lý các dòng bị ngắt
-        pattern = re.compile(r'\"(\d+)\s*\",\"(.*?)\s*\",\"(.*?)\s*\",\"(.*?)\s*\",\"([\d,]+?)\s*\"', re.DOTALL)
+        # Regex được cải tiến để linh hoạt hơn với các khoảng trắng và dòng mới
+        pattern = re.compile(r'\"([\d\s]+?)\s*\",\"(.*?)\s*\",\"(.*?)\s*\",\"(.*?)\s*\",\"([\d,\s]+?)\s*\"', re.DOTALL)
         matches = pattern.findall(full_text)
         
-        if not matches:
-             st.error("Không thể trích xuất dữ liệu từ file PDF. Vui lòng kiểm tra định dạng file Bảng giá.")
-             return pd.DataFrame()
+        processed_rows = []
+        if matches:
+            for row in matches:
+                stt, quy_cach, ma_gai, xuat_xu, gia = row
+                # Xử lý các dòng bị ghép do lỗi trích xuất PDF
+                stt_list = [s.strip() for s in stt.split('\n') if s.strip()]
+                gia_list = [s.strip() for s in gia.split('\n') if s.strip()]
+                # Chỉ lấy dòng đầu tiên của các trường khác để tránh lỗi không khớp
+                quy_cach_clean = quy_cach.split('\n')[0].strip()
+                ma_gai_clean = ma_gai.split('\n')[0].strip()
+                xuat_xu_clean = xuat_xu.split('\n')[0].strip()
 
-        df = pd.DataFrame(matches, columns=['stt', 'quy_cach', 'ma_gai', 'xuat_xu', 'gia_ban_le'])
+                # Ghép cặp STT và Giá nếu chúng bị tách dòng
+                for i in range(min(len(stt_list), len(gia_list))):
+                    processed_rows.append([stt_list[i], quy_cach_clean, ma_gai_clean, xuat_xu_clean, gia_list[i]])
+        
+        if not processed_rows:
+            st.error("Không thể trích xuất dữ liệu từ file PDF. Vui lòng kiểm tra định dạng file Bảng giá.")
+            return pd.DataFrame()
+
+        df = pd.DataFrame(processed_rows, columns=['stt', 'quy_cach', 'ma_gai', 'xuat_xu', 'gia_ban_le'])
         
         # Dọn dẹp dữ liệu
-        df['gia_ban_le'] = df['gia_ban_le'].str.replace(',', '').astype(float)
+        df['gia_ban_le'] = df['gia_ban_le'].str.replace(',', '', regex=False).str.strip()
+        df['gia_ban_le'] = pd.to_numeric(df['gia_ban_le'], errors='coerce')
+        df.dropna(subset=['gia_ban_le'], inplace=True)
+        
         df['quy_cach'] = df['quy_cach'].str.strip()
         df['ma_gai'] = df['ma_gai'].str.strip()
         df['xuat_xu'] = df['xuat_xu'].str.strip()
@@ -45,28 +62,44 @@ def load_data():
         df_prices = parse_price_pdf('BẢNG GIÁ BÁN LẺ_19_05_2025 - bảng giá bán lẻ TL.pdf')
         
         df_magai = pd.read_csv('Mã Gai LINGLONG - Mã Gai.csv')
-        # Đổi tên cột một cách an toàn
-        df_magai.columns = ['ma_gai', 'mo_ta_gai', 'nhu_cau'][:len(df_magai.columns)]
+        # --- SỬA LỖI VALUEERROR ---
+        # Gán tên cột một cách an toàn, chấp nhận file CSV có số cột khác nhau
+        expected_cols = ['ma_gai', 'mo_ta_gai', 'nhu_cau']
+        num_cols_to_use = min(len(df_magai.columns), len(expected_cols))
+        
+        df_magai = df_magai.iloc[:, :num_cols_to_use] # Chỉ lấy các cột cần thiết
+        df_magai.columns = expected_cols[:num_cols_to_use] # Đổi tên các cột đã lấy
+        # --- KẾT THÚC SỬA LỖI ---
         df_magai['ma_gai'] = df_magai['ma_gai'].str.strip()
 
         df_xe1 = pd.read_csv('xe, đời xe,lop theo xe.........xls - Tyre-1.csv')
         df_xe2 = pd.read_csv('xe, đời xe,lop theo xe.........xls - tyre bổ sung.csv')
         df_xe = pd.concat([df_xe1, df_xe2], ignore_index=True)
-        # Đổi tên cột một cách an toàn
+
         df_xe.columns = ['hang_xe', 'mau_xe', 'doi_xe', 'quy_cach'][:len(df_xe.columns)]
         df_xe.dropna(subset=['hang_xe', 'mau_xe', 'quy_cach'], inplace=True)
         df_xe['quy_cach'] = df_xe['quy_cach'].str.strip()
         df_xe['display_name'] = df_xe['hang_xe'] + " " + df_xe['mau_xe']
 
-
     except FileNotFoundError as e:
         st.error(f"Lỗi: Không tìm thấy file dữ liệu - {e.filename}. Vui lòng kiểm tra lại.")
+        return pd.DataFrame(), pd.DataFrame()
+    except Exception as e:
+        st.error(f"Đã có lỗi xảy ra khi đọc file CSV: {e}")
         return pd.DataFrame(), pd.DataFrame()
 
     # --- Kết hợp dữ liệu ---
     df_master = pd.merge(df_prices, df_magai, on='ma_gai', how='left')
-    df_master['nhu_cau'] = df_master['nhu_cau'].fillna('Tiêu chuẩn')
-    df_master['mo_ta_gai'] = df_master['mo_ta_gai'].fillna('Gai lốp tiêu chuẩn của Linglong.')
+    # Điền các giá trị còn trống nếu có
+    if 'nhu_cau' not in df_master.columns:
+        df_master['nhu_cau'] = 'Tiêu chuẩn'
+    else:
+        df_master['nhu_cau'] = df_master['nhu_cau'].fillna('Tiêu chuẩn')
+    
+    if 'mo_ta_gai' not in df_master.columns:
+        df_master['mo_ta_gai'] = 'Gai lốp tiêu chuẩn của Linglong.'
+    else:
+        df_master['mo_ta_gai'] = df_master['mo_ta_gai'].fillna('Gai lốp tiêu chuẩn của Linglong.')
     
     return df_master, df_xe
 
