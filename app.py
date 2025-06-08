@@ -123,16 +123,16 @@ else:
                         for index, row in results.iterrows():
                             full_prompt += (
                                 f"Sản phẩm: Lốp Linglong, size {row['quy_cach']}, mã gai {row['ma_gai']}.\n"
-                                f"Thông tin thêm: Ưu điểm là '{row['uu_diem_cot_loi']}'. Phù hợp cho '{row['ung_dung_cu_the']}'.\n\n"
+                                f"Thông tin thêm: Ưu điểm là '{row['uu_diem_cot_loi']}'. Phù hợp cho '{row['ung_dung_cu_the']}'.\n---\n"
                             )
                         
-                        # THAY ĐỔI: Sử dụng model gemini-1.5-pro-latest để có kết quả mạnh mẽ hơn
-                        model = genai.GenerativeModel('gemini-1.5-pro-latest')
+                        # Sử dụng model flash để tiết kiệm và nhanh hơn
+                        model = genai.GenerativeModel('gemini-1.5-flash-latest')
                         with st.spinner("AI đang sáng tạo nội dung cho tất cả sản phẩm..."):
                             response = model.generate_content(full_prompt)
                             # Tách các mô tả ra
                             descriptions = response.text.split('---')
-                            if len(descriptions) == len(results):
+                            if len(descriptions) >= len(results):
                                 ai_descriptions = {results.iloc[i]['ma_gai']: desc.strip() for i, desc in enumerate(descriptions)}
                             else:
                                 # Nếu AI không trả về đúng số lượng, hiển thị toàn bộ phản hồi
