@@ -2,6 +2,10 @@ import streamlit as st
 import pandas as pd
 import re
 
+# --- PHẦN CẤU HÌNH TRANG ---
+# SỬA LỖI: Lệnh st.set_page_config phải được gọi đầu tiên để tránh lỗi
+st.set_page_config(page_title="Công Cụ Tư Vấn Lốp Xe", layout="wide")
+
 # --- PHẦN 1: XỬ LÝ VÀ TẢI DỮ LIỆU ---
 @st.cache_data
 def load_data():
@@ -10,22 +14,27 @@ def load_data():
     Streamlit sẽ lưu kết quả vào cache để không phải chạy lại mỗi lần người dùng tương tác.
     """
     try:
-        # --- THAY ĐỔI: Đọc bảng giá trực tiếp từ file CSV ---
+        # --- Đọc bảng giá trực tiếp từ file CSV ---
         df_prices = pd.read_csv('BẢNG GIÁ BÁN LẺ_19_05_2025.csv')
-        # Đổi tên cột để dễ xử lý
-        df_prices.columns = ['stt', 'quy_cach', 'ma_gai', 'xuat_xu', 'gia_ban_le']
         
-        # Dọn dẹp dữ liệu giá
-        # Xóa các ký tự không phải số (dấu phẩy) và chuyển sang dạng số
-        df_prices['gia_ban_le'] = df_prices['gia_ban_le'].astype(str).str.replace(r'[^\d]', '', regex=True)
-        df_prices['gia_ban_le'] = pd.to_numeric(df_prices['gia_ban_le'], errors='coerce')
-        df_prices.dropna(subset=['gia_ban_le'], inplace=True) # Xóa các dòng không có giá hợp lệ
+        # SỬA LỖI: Gán tên cột một cách an toàn để tránh lỗi "Length mismatch"
+        price_cols = ['stt', 'quy_cach', 'ma_gai', 'xuat_xu', 'gia_ban_le']
+        # Gán tên cho số cột thực tế có trong file
+        df_prices.columns = price_cols[:len(df_prices.columns)]
+        
+        # Kiểm tra và dọn dẹp dữ liệu giá nếu cột tồn tại
+        if 'gia_ban_le' in df_prices.columns:
+            df_prices['gia_ban_le'] = df_prices['gia_ban_le'].astype(str).str.replace(r'[^\d]', '', regex=True)
+            df_prices['gia_ban_le'] = pd.to_numeric(df_prices['gia_ban_le'], errors='coerce')
+            df_prices.dropna(subset=['gia_ban_le'], inplace=True)
         
         # Dọn dẹp các cột khác
-        df_prices['quy_cach'] = df_prices['quy_cach'].str.strip()
-        df_prices['ma_gai'] = df_prices['ma_gai'].str.strip()
-        df_prices['xuat_xu'] = df_prices['xuat_xu'].str.strip()
-        # --- KẾT THÚC THAY ĐỔI ---
+        if 'quy_cach' in df_prices.columns:
+            df_prices['quy_cach'] = df_prices['quy_cach'].str.strip()
+        if 'ma_gai' in df_prices.columns:
+            df_prices['ma_gai'] = df_prices['ma_gai'].str.strip()
+        if 'xuat_xu' in df_prices.columns:
+            df_prices['xuat_xu'] = df_prices['xuat_xu'].str.strip()
 
         # Tải các file CSV còn lại
         df_magai = pd.read_csv('Mã Gai LINGLONG - Mã Gai.csv')
@@ -71,8 +80,6 @@ df_master, df_xe = load_data()
 
 
 # --- PHẦN 2: XÂY DỰNG GIAO DIỆN NGƯỜI DÙNG (UI) ---
-
-st.set_page_config(page_title="Công Cụ Tư Vấn Lốp Xe", layout="wide")
 
 # Tiêu đề chính của ứng dụng
 st.title("️🚗 BỘ CÔNG CỤ TƯ VẤN LỐP XE LINGLONG")
