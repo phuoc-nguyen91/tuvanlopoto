@@ -15,11 +15,11 @@ def load_tire_data():
     try:
         # Đọc file CSV với kiểu dữ liệu là 'str' (văn bản) để tránh lỗi
         df_prices_raw = pd.read_csv('BẢNG GIÁ BÁN LẺ_19_05_2025.csv', dtype=str)
-        # SỬA ĐỔI: Sử dụng file "Mã Gai LINGLONG.csv" mới
         df_magai_raw = pd.read_csv('Mã Gai LINGLONG.csv', dtype=str)
 
         # 1. XỬ LÝ BẢNG GIÁ (df_prices)
-        price_cols = ['stt', 'quy_cach', 'ma_gai', 'xuat_xu', 'gia_ban_le']
+        # SỬA LỖI: Bỏ cột 'xuat_xu' và đọc cột thứ 4 là 'gia_ban_le'
+        price_cols = ['stt', 'quy_cach', 'ma_gai', 'gia_ban_le']
         num_price_cols = min(len(df_prices_raw.columns), len(price_cols))
         df_prices = df_prices_raw.iloc[:, :num_price_cols]
         df_prices.columns = price_cols[:num_price_cols]
@@ -32,7 +32,7 @@ def load_tire_data():
             df_prices.dropna(subset=['gia_ban_le'], inplace=True)
 
         # 2. XỬ LÝ MÔ TẢ MÃ GAI (df_magai)
-        # THÊM TÍNH NĂNG: Thêm cột 'link_hinh_anh'
+        # Thêm cột 'link_hinh_anh'
         magai_cols = ['ma_gai', 'mo_ta_gai', 'nhu_cau', 'link_hinh_anh']
         num_magai_cols = min(len(df_magai_raw.columns), len(magai_cols))
         df_magai = df_magai_raw.iloc[:, :num_magai_cols]
@@ -48,13 +48,11 @@ def load_tire_data():
         if 'mo_ta_gai' not in df_master.columns: df_master['mo_ta_gai'] = 'Gai lốp tiêu chuẩn.'
         df_master['mo_ta_gai'] = df_master['mo_ta_gai'].fillna('Gai lốp tiêu chuẩn của Linglong.')
 
-        # THÊM TÍNH NĂNG: Đảm bảo cột link hình ảnh tồn tại và điền giá trị trống
         if 'link_hinh_anh' not in df_master.columns: df_master['link_hinh_anh'] = ''
         df_master['link_hinh_anh'] = df_master['link_hinh_anh'].fillna('')
 
-
         # Làm sạch khoảng trắng thừa
-        for col in ['quy_cach', 'ma_gai', 'xuat_xu', 'nhu_cau', 'mo_ta_gai', 'link_hinh_anh']:
+        for col in ['quy_cach', 'ma_gai', 'nhu_cau', 'mo_ta_gai', 'link_hinh_anh']:
              if col in df_master.columns:
                 df_master[col] = df_master[col].str.strip()
         
@@ -116,9 +114,10 @@ else:
                         with col_info:
                             st.markdown(f"##### {row['quy_cach']} - **Mã gai:** {row['ma_gai']}")
                             st.markdown(f"**Tính năng nổi bật:** {row['mo_ta_gai']}")
-                            st.markdown(f"**Nhu cầu:** {row['nhu_cau']} | **Xuất xứ:** {row['xuat_xu'].title()}")
+                            # SỬA LỖI: Bỏ cột 'xuat_xu'
+                            st.markdown(f"**Nhu cầu:** {row['nhu_cau']}")
                             
-                            # THÊM TÍNH NĂNG: Hiển thị link nếu có
+                            # Hiển thị link nếu có
                             if 'link_hinh_anh' in row and pd.notna(row['link_hinh_anh']) and row['link_hinh_anh']:
                                 st.markdown(f"**Media:** [🖼️ Xem Hình Ảnh/Video]({row['link_hinh_anh']})")
 
