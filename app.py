@@ -32,8 +32,8 @@ def load_tire_data():
         df_magai_raw = pd.read_csv('Mã Gai LINGLONG.csv', dtype=str)
         
         # Tải các file dữ liệu bổ sung về lốp theo xe
-        df_xe_lop_1 = pd.read_csv('xe, đời xe,lop theo xe.........xls - Tyre-1.csv', dtype=str)
-        df_xe_lop_2 = pd.read_csv('xe, đời xe,lop theo xe.........xls - tyre bổ sung.csv', dtype=str)
+        df_xe_lop_1 = pd.read_csv('Tyre1.csv', dtype=str)
+        df_xe_lop_2 = pd.read_csv('tyre_bosung.csv', dtype=str)
         
         # Hợp nhất hai file thông tin lốp theo xe
         df_lop_theo_xe = pd.concat([df_xe_lop_1, df_xe_lop_2], ignore_index=True)
