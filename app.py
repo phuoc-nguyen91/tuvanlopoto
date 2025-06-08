@@ -7,23 +7,17 @@ import google.generativeai as genai
 st.set_page_config(page_title="Công Cụ Tra Cứu Lốp Xe", layout="wide")
 
 # --- PHẦN 1.5: CẤU HÌNH API AN TOÀN VỚI STREAMLIT SECRETS ---
-# Code sẽ cố gắng lấy API key từ trình quản lý bí mật của Streamlit
-# Đây là cách làm an toàn khi bạn triển khai ứng dụng lên Streamlit Cloud.
 api_configured = False
 try:
     if 'google_api_key' in st.secrets:
         genai.configure(api_key=st.secrets["google_api_key"])
         api_configured = True
-    else:
-        # Ẩn thông báo này khỏi người dùng cuối, chỉ hiện khi chạy code
-        print("API Key chưa được cấu hình trong Streamlit Secrets.")
 except Exception as e:
-    # Không hiển thị lỗi cho người dùng cuối để tăng tính bảo mật
     print(f"Lỗi cấu hình API: {e}")
 
 
 # --- PHẦN 2: TẢI VÀ XỬ LÝ DỮ LIỆU ---
-@st.cache_data # Decorator giúp lưu kết quả xử lý dữ liệu, tăng tốc độ cho những lần chạy sau
+@st.cache_data
 def load_tire_data():
     """
     Hàm này có nhiệm vụ tải và xử lý dữ liệu lốp từ các file CSV.
@@ -66,6 +60,10 @@ def load_tire_data():
              if df_master[col].dtype == 'object':
                 df_master[col] = df_master[col].str.strip()
         
+        # SỬA LỖI LOGIC: Tạo cột 'base_size' để gom nhóm các size lốp
+        # Ví dụ: "265/65R17 AT2" và "265/65R17 CS" sẽ có cùng base_size là "265/65R17"
+        df_master['base_size'] = df_master['quy_cach'].str.split(' ').str[0]
+
         return df_master
 
     except FileNotFoundError as e:
@@ -96,10 +94,8 @@ else:
     with tab_search:
         st.header("Tra cứu lốp Linglong theo kích thước")
         
-        # SỬA ĐỔI: Thay thế text_input bằng selectbox
-        # Tạo danh sách các size lốp duy nhất và đã được sắp xếp
-        unique_sizes = sorted(df_master['quy_cach'].unique())
-        # Thêm một lựa chọn mặc định vào đầu danh sách
+        # SỬA LỖI: Lấy danh sách từ cột 'base_size' đã được làm sạch
+        unique_sizes = sorted(df_master['base_size'].unique())
         options = ["--- Chọn hoặc tìm size lốp ---"] + unique_sizes
         
         size_query = st.selectbox(
@@ -111,34 +107,13 @@ else:
         # Chỉ thực hiện tìm kiếm khi người dùng đã chọn một size cụ thể
         if size_query != "--- Chọn hoặc tìm size lốp ---":
             search_term = size_query
-            # SỬA LỖI: Đảm bảo tìm tất cả các mã gai cho cùng một size
-            results = df_master[df_master['quy_cach'] == search_term].copy()
+            # SỬA LỖI: Tìm kiếm dựa trên cột 'base_size' để lấy tất cả các biến thể
+            results = df_master[df_master['base_size'] == search_term].copy()
             
             if 'gia_ban_le' in results.columns:
                 results = results.sort_values(by="gia_ban_le")
 
             st.write("---")
-            
-            ai_descriptions = {}
-            if api_configured and not results.empty:
-                try:
-                    full_prompt = "Với vai trò là một chuyên gia marketing cho hãng lốp Linglong, hãy viết một đoạn giới thiệu sản phẩm ngắn gọn (khoảng 3-4 câu) cho từng sản phẩm dưới đây. Mỗi sản phẩm cách nhau bởi dấu '---'.\n\n"
-                    for index, row in results.iterrows():
-                        full_prompt += (
-                            f"Sản phẩm: Lốp Linglong, size {row['quy_cach']}, mã gai {row['ma_gai']}.\n"
-                            f"Thông tin thêm: Ưu điểm là '{row['uu_diem_cot_loi']}'. Phù hợp cho '{row['ung_dung_cu_the']}'.\n---\n"
-                        )
-                    
-                    model = genai.GenerativeModel('gemini-1.5-flash-latest')
-                    response = model.generate_content(full_prompt)
-                    descriptions = response.text.split('---')
-                    if len(descriptions) >= len(results):
-                        ai_descriptions = {results.iloc[i]['ma_gai']: desc.strip() for i, desc in enumerate(descriptions)}
-                    else:
-                        ai_descriptions['general'] = response.text
-                except Exception as e:
-                    st.warning(f"Không thể gọi AI: {e}")
-
             st.subheader(f"Kết quả tra cứu cho \"{search_term}\"")
             
             if not results.empty:
@@ -154,14 +129,9 @@ else:
                     with col_price:
                         st.markdown(f"<div style='text-align: right; font-size: 1.2em; color: #28a745; font-weight: bold;'>{price_str}</div>", unsafe_allow_html=True)
 
-                    # Hiển thị mô tả từ AI hoặc thông tin cơ bản
-                    desc = ai_descriptions.get(row['ma_gai'], ai_descriptions.get('general', ''))
-                    if api_configured and desc:
-                        st.markdown(f"{desc}")
-                    else:
-                        st.markdown(f"**👍 Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
+                    st.markdown(f"**👍 Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
 
-                    # THÊM TÍNH NĂNG: Báo giá khuyến mãi
+                    # Báo giá khuyến mãi
                     if pd.notna(row['gia_ban_le']):
                         with st.container():
                             st.markdown("🎁 **Báo giá khuyến mãi:**")
