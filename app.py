@@ -106,30 +106,24 @@ else:
                 for index, row in results.iterrows():
                     st.markdown(f"#### {row['quy_cach']} / {row['ma_gai']}")
                     
-                    # Tạo DataFrame nhỏ để hiển thị dạng bảng
                     price_str = f"{row['gia_ban_le']:,} VNĐ" if pd.notna(row['gia_ban_le']) else "Chưa có giá"
-                    link_str = f"[Xem Hình Ảnh/Video]({row['link_hinh_anh']})" if row['link_hinh_anh'] not in ['Chưa có thông tin', ''] else "Không có"
+                    link_str = f"<a href='{row['link_hinh_anh']}' target='_blank'>Xem Hình Ảnh/Video</a>" if row['link_hinh_anh'] not in ['Chưa có thông tin', ''] else "Không có"
 
-                    table_data = {
-                        "Thuộc tính": [
-                            "**Giá Bán Lẻ**",
-                            "Ứng dụng cụ thể",
-                            "Ưu điểm cốt lõi",
-                            "Phân loại",
-                            "Media"
-                        ],
-                        "Chi tiết": [
-                            f"**{price_str}**",
-                            row['ung_dung_cu_the'],
-                            row['uu_diem_cot_loi'],
-                            row['nhu_cau'],
-                            link_str
-                        ]
-                    }
-                    display_df = pd.DataFrame(table_data)
+                    # SỬA LỖI: Thay thế to_markdown bằng cách hiển thị trực tiếp với st.columns để tránh lỗi ImportError
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        st.markdown("**Giá Bán Lẻ**")
+                        st.markdown("**Ứng dụng cụ thể**")
+                        st.markdown("**Ưu điểm cốt lõi**")
+                        st.markdown("**Phân loại**")
+                        st.markdown("**Media**")
+                    with col2:
+                        st.markdown(f"**{price_str}**")
+                        st.markdown(row['ung_dung_cu_the'])
+                        st.markdown(row['uu_diem_cot_loi'])
+                        st.markdown(row['nhu_cau'])
+                        st.markdown(link_str, unsafe_allow_html=True)
                     
-                    # Hiển thị bảng bằng st.markdown để có thể format link
-                    st.markdown(display_df.to_markdown(index=False), unsafe_allow_html=True)
                     st.write("---")
 
             else:
