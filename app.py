@@ -4,8 +4,23 @@ import re
 import google.generativeai as genai
 
 # --- PHẦN 1: CẤU HÌNH TRANG WEB ---
-# Lệnh này phải được gọi đầu tiên để thiết lập tiêu đề và layout cho trang
 st.set_page_config(page_title="Công Cụ Tra Cứu Lốp Xe", layout="wide")
+
+# --- PHẦN 1.5: CẤU HÌNH API AN TOÀN VỚI STREAMLIT SECRETS ---
+# Code sẽ cố gắng lấy API key từ trình quản lý bí mật của Streamlit
+# Đây là cách làm an toàn khi bạn triển khai ứng dụng lên Streamlit Cloud.
+api_configured = False
+try:
+    if 'google_api_key' in st.secrets:
+        genai.configure(api_key=st.secrets["google_api_key"])
+        api_configured = True
+    else:
+        # Ẩn thông báo này khỏi người dùng cuối, chỉ hiện khi chạy code
+        print("API Key chưa được cấu hình trong Streamlit Secrets.")
+except Exception as e:
+    # Không hiển thị lỗi cho người dùng cuối để tăng tính bảo mật
+    print(f"Lỗi cấu hình API: {e}")
+
 
 # --- PHẦN 2: TẢI VÀ XỬ LÝ DỮ LIỆU ---
 @st.cache_data # Decorator giúp lưu kết quả xử lý dữ liệu, tăng tốc độ cho những lần chạy sau
@@ -68,23 +83,6 @@ df_master = load_tire_data()
 st.title("️🚗 BỘ CÔNG CỤ TRA CỨU LỐP XE LINGLONG")
 st.markdown("Xây dựng bởi **Chuyên Gia Lốp Thầm Lặng** - Dành cho những lựa chọn sáng suốt.")
 
-# Thanh bên để nhập API Key
-with st.sidebar:
-    st.header("Cấu hình AI (Tùy chọn)")
-    st.markdown("Để bật tính năng viết bài giới thiệu, hãy lấy API Key của bạn từ [Google AI Studio](https://aistudio.google.com/app/apikey) và dán vào đây.")
-    google_api_key = st.text_input("Google AI Studio API Key", type="password", key="api_key_input")
-    if google_api_key:
-        try:
-            genai.configure(api_key=google_api_key)
-            st.session_state.api_configured = True
-            st.success("Đã kết nối với Google AI!")
-        except Exception as e:
-            st.session_state.api_configured = False
-            st.error("API Key không hợp lệ hoặc có lỗi.")
-
-if 'api_configured' not in st.session_state:
-    st.session_state.api_configured = False
-
 if df_master.empty:
     st.warning("Không thể khởi động ứng dụng do lỗi tải dữ liệu. Vui lòng kiểm tra lại thông báo lỗi ở trên.")
 else:
@@ -114,8 +112,7 @@ else:
             st.write("---")
             
             ai_descriptions = {}
-            if st.session_state.api_configured and not results.empty:
-                # SỬA ĐỔI: Bỏ spinner để "giấu" AI
+            if api_configured and not results.empty:
                 try:
                     full_prompt = "Với vai trò là một chuyên gia marketing cho hãng lốp Linglong, hãy viết một đoạn giới thiệu sản phẩm ngắn gọn (khoảng 3-4 câu) cho từng sản phẩm dưới đây. Mỗi sản phẩm cách nhau bởi dấu '---'.\n\n"
                     for index, row in results.iterrows():
@@ -151,8 +148,7 @@ else:
 
                     # Hiển thị mô tả từ AI hoặc thông tin cơ bản
                     desc = ai_descriptions.get(row['ma_gai'], ai_descriptions.get('general', ''))
-                    if desc:
-                        # SỬA ĐỔI: Bỏ nhãn "AI Giới Thiệu"
+                    if api_configured and desc:
                         st.markdown(f"{desc}")
                     else:
                         st.markdown(f"**👍 Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
@@ -171,13 +167,12 @@ else:
                     
                     st.markdown("---")
 
-                # SỬA ĐỔI: Di chuyển CTA ra ngoài vòng lặp
+                # Di chuyển CTA ra ngoài vòng lặp
                 st.markdown("##### **Để được tư vấn và báo giá tốt nhất, vui lòng liên hệ:**")
                 
                 col_cta_1, col_cta_2 = st.columns([2,1])
                 with col_cta_1:
                     st.markdown("📞 **HOTLINE:** **0943 24 24 24**")
-                    # THÊM TÍNH NĂNG: Link Zalo
                     st.markdown("💬 **Zalo:** [https://zalo.me/0943242424](https://zalo.me/0943242424)")
                     st.markdown("📍 **Địa chỉ:** 114 Đường Số 2, Trường Thọ, Thủ Đức, TPHCM")
                 with col_cta_2:
