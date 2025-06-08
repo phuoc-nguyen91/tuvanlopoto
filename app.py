@@ -9,10 +9,12 @@ st.set_page_config(page_title="Công Cụ Tra Cứu Lốp Xe", layout="wide")
 # --- PHẦN 1.5: CẤU HÌNH API AN TOÀN VỚI STREAMLIT SECRETS ---
 api_configured = False
 try:
+    # Cố gắng lấy API key từ trình quản lý bí mật của Streamlit
     if 'google_api_key' in st.secrets:
         genai.configure(api_key=st.secrets["google_api_key"])
         api_configured = True
 except Exception as e:
+    # Không hiển thị lỗi cho người dùng cuối để tăng tính bảo mật
     print(f"Lỗi cấu hình API: {e}")
 
 
@@ -29,9 +31,8 @@ def load_tire_data():
 
         # 1. XỬ LÝ BẢNG GIÁ
         price_cols = ['stt', 'quy_cach', 'ma_gai', 'gia_ban_le']
-        num_price_cols = min(len(df_prices_raw.columns), len(price_cols))
-        df_prices = df_prices_raw.iloc[:, :num_price_cols]
-        df_prices.columns = price_cols[:num_price_cols]
+        df_prices = df_prices_raw.iloc[:, :len(price_cols)]
+        df_prices.columns = price_cols
         
         if 'gia_ban_le' in df_prices.columns:
             df_prices['gia_ban_le'] = pd.to_numeric(
@@ -42,9 +43,8 @@ def load_tire_data():
 
         # 2. XỬ LÝ MÔ TẢ MÃ GAI
         magai_cols = ['ma_gai', 'nhu_cau', 'ung_dung_cu_the', 'uu_diem_cot_loi', 'link_hinh_anh']
-        num_magai_cols = min(len(df_magai_raw.columns), len(magai_cols))
-        df_magai = df_magai_raw.iloc[:, :num_magai_cols]
-        df_magai.columns = magai_cols[:num_magai_cols]
+        df_magai = df_magai_raw.iloc[:, :len(magai_cols)]
+        df_magai.columns = magai_cols
         
         # 3. KẾT HỢP CÁC BẢNG DỮ LIỆU
         df_master = pd.merge(df_prices, df_magai, on='ma_gai', how='left')
@@ -60,9 +60,8 @@ def load_tire_data():
              if df_master[col].dtype == 'object':
                 df_master[col] = df_master[col].str.strip()
         
-        # SỬA LỖI LOGIC: Tạo cột 'base_size' để gom nhóm các size lốp
-        # Ví dụ: "265/65R17 AT2" và "265/65R17 CS" sẽ có cùng base_size là "265/65R17"
-        df_master['base_size'] = df_master['quy_cach'].str.split(' ').str[0]
+        # Tạo cột 'base_size' để gom nhóm các size lốp
+        df_master['base_size'] = df_master['quy_cach'].str.extract(r'(\d+/\d+R\d+)')
 
         return df_master
 
@@ -94,8 +93,8 @@ else:
     with tab_search:
         st.header("Tra cứu lốp Linglong theo kích thước")
         
-        # SỬA LỖI: Lấy danh sách từ cột 'base_size' đã được làm sạch
-        unique_sizes = sorted(df_master['base_size'].unique())
+        # Lấy danh sách từ cột 'base_size' đã được làm sạch
+        unique_sizes = sorted(df_master['base_size'].dropna().unique())
         options = ["--- Chọn hoặc tìm size lốp ---"] + unique_sizes
         
         size_query = st.selectbox(
@@ -107,7 +106,7 @@ else:
         # Chỉ thực hiện tìm kiếm khi người dùng đã chọn một size cụ thể
         if size_query != "--- Chọn hoặc tìm size lốp ---":
             search_term = size_query
-            # SỬA LỖI: Tìm kiếm dựa trên cột 'base_size' để lấy tất cả các biến thể
+            # Tìm kiếm dựa trên cột 'base_size' để lấy tất cả các biến thể
             results = df_master[df_master['base_size'] == search_term].copy()
             
             if 'gia_ban_le' in results.columns:
@@ -129,7 +128,26 @@ else:
                     with col_price:
                         st.markdown(f"<div style='text-align: right; font-size: 1.2em; color: #28a745; font-weight: bold;'>{price_str}</div>", unsafe_allow_html=True)
 
-                    st.markdown(f"**👍 Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
+                    # THAY ĐỔI: Sử dụng AI để tạo nội dung cho phần "Ưu điểm cốt lõi"
+                    if api_configured:
+                        try:
+                            # Tối ưu prompt để AI trả lời đúng trọng tâm
+                            prompt = (
+                                f"Với vai trò là một chuyên gia tư vấn lốp xe, hãy viết một đoạn ngắn (2-3 câu) nêu bật các ưu điểm cốt lõi của lốp Linglong có thông số {row['quy_cach']} và mã gai {row['ma_gai']}. "
+                                f"Sau đó, liệt kê dưới dạng gạch đầu dòng một vài dòng xe phổ biến tại Việt Nam thường sử dụng loại lốp này."
+                                f"Sử dụng thông tin gợi ý sau nếu có: {row['uu_diem_cot_loi']}."
+                            )
+                            model = genai.GenerativeModel('gemini-1.5-pro-latest')
+                            with st.spinner("AI đang phân tích sản phẩm..."):
+                                response = model.generate_content(prompt)
+                                st.markdown(response.text)
+                        except Exception as e:
+                            # Nếu AI lỗi, hiển thị thông tin có sẵn
+                            st.markdown(f"**👍 Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
+                            st.warning(f"Không thể tải gợi ý từ AI: {e}")
+                    else:
+                        # Hiển thị thông tin mặc định nếu không có API key
+                        st.markdown(f"**👍 Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
 
                     # Báo giá khuyến mãi
                     if pd.notna(row['gia_ban_le']):
