@@ -15,7 +15,8 @@ def load_tire_data():
     try:
         # Đọc file CSV với kiểu dữ liệu là 'str' (văn bản) để tránh lỗi
         df_prices_raw = pd.read_csv('BẢNG GIÁ BÁN LẺ_19_05_2025.csv', dtype=str)
-        df_magai_raw = pd.read_csv('Mã Gai LINGLONG - Mã Gai.csv', dtype=str)
+        # SỬA ĐỔI: Sử dụng file "Mã Gai LINGLONG.csv" mới
+        df_magai_raw = pd.read_csv('Mã Gai LINGLONG.csv', dtype=str)
 
         # 1. XỬ LÝ BẢNG GIÁ (df_prices)
         price_cols = ['stt', 'quy_cach', 'ma_gai', 'xuat_xu', 'gia_ban_le']
@@ -31,7 +32,8 @@ def load_tire_data():
             df_prices.dropna(subset=['gia_ban_le'], inplace=True)
 
         # 2. XỬ LÝ MÔ TẢ MÃ GAI (df_magai)
-        magai_cols = ['ma_gai', 'mo_ta_gai', 'nhu_cau']
+        # THÊM TÍNH NĂNG: Thêm cột 'link_hinh_anh'
+        magai_cols = ['ma_gai', 'mo_ta_gai', 'nhu_cau', 'link_hinh_anh']
         num_magai_cols = min(len(df_magai_raw.columns), len(magai_cols))
         df_magai = df_magai_raw.iloc[:, :num_magai_cols]
         df_magai.columns = magai_cols[:num_magai_cols]
@@ -46,8 +48,13 @@ def load_tire_data():
         if 'mo_ta_gai' not in df_master.columns: df_master['mo_ta_gai'] = 'Gai lốp tiêu chuẩn.'
         df_master['mo_ta_gai'] = df_master['mo_ta_gai'].fillna('Gai lốp tiêu chuẩn của Linglong.')
 
+        # THÊM TÍNH NĂNG: Đảm bảo cột link hình ảnh tồn tại và điền giá trị trống
+        if 'link_hinh_anh' not in df_master.columns: df_master['link_hinh_anh'] = ''
+        df_master['link_hinh_anh'] = df_master['link_hinh_anh'].fillna('')
+
+
         # Làm sạch khoảng trắng thừa
-        for col in ['quy_cach', 'ma_gai', 'xuat_xu', 'nhu_cau', 'mo_ta_gai']:
+        for col in ['quy_cach', 'ma_gai', 'xuat_xu', 'nhu_cau', 'mo_ta_gai', 'link_hinh_anh']:
              if col in df_master.columns:
                 df_master[col] = df_master[col].str.strip()
         
@@ -91,7 +98,7 @@ else:
             # Tìm kiếm gần đúng và sắp xếp theo giá
             results = df_master[df_master['quy_cach'].str.contains(search_term, case=False, na=False)]
             
-            # SỬA LỖI: Chỉ sắp xếp theo giá nếu cột 'gia_ban_le' tồn tại
+            # Chỉ sắp xếp theo giá nếu cột 'gia_ban_le' tồn tại
             if 'gia_ban_le' in results.columns:
                 results = results.sort_values(by="gia_ban_le")
 
@@ -110,9 +117,13 @@ else:
                             st.markdown(f"##### {row['quy_cach']} - **Mã gai:** {row['ma_gai']}")
                             st.markdown(f"**Tính năng nổi bật:** {row['mo_ta_gai']}")
                             st.markdown(f"**Nhu cầu:** {row['nhu_cau']} | **Xuất xứ:** {row['xuat_xu'].title()}")
-                        
+                            
+                            # THÊM TÍNH NĂNG: Hiển thị link nếu có
+                            if 'link_hinh_anh' in row and pd.notna(row['link_hinh_anh']) and row['link_hinh_anh']:
+                                st.markdown(f"**Media:** [🖼️ Xem Hình Ảnh/Video]({row['link_hinh_anh']})")
+
                         with col_price:
-                            # SỬA LỖI: Chỉ hiển thị giá nếu cột 'gia_ban_le' tồn tại
+                            # Chỉ hiển thị giá nếu cột 'gia_ban_le' tồn tại
                             if 'gia_ban_le' in row and pd.notna(row['gia_ban_le']):
                                 st.markdown(f"<div style='text-align: right; font-size: 1.2em; color: #28a745; font-weight: bold;'>{row['gia_ban_le']:,} VNĐ</div>", unsafe_allow_html=True)
                             else:
