@@ -12,7 +12,6 @@ st.set_page_config(page_title="Công Cụ Tra Cứu Lốp Xe", layout="wide")
 def load_tire_data():
     """
     Hàm này có nhiệm vụ tải và xử lý dữ liệu lốp từ các file CSV.
-    Dữ liệu xe đã được loại bỏ để thay thế bằng tính năng AI.
     """
     try:
         # Đọc file CSV với kiểu dữ liệu là 'str' (văn bản) để tránh lỗi
@@ -41,7 +40,7 @@ def load_tire_data():
         # 3. KẾT HỢP CÁC BẢNG DỮ LIỆU
         df_master = pd.merge(df_prices, df_magai, on='ma_gai', how='left')
 
-        # Điền các giá trị còn trống để đảm bảo không bị lỗi
+        # Điền các giá trị còn trống
         for col in ['nhu_cau', 'ung_dung_cu_the', 'uu_diem_cot_loi', 'link_hinh_anh']:
             if col not in df_master.columns:
                 df_master[col] = 'Chưa có thông tin'
@@ -56,7 +55,7 @@ def load_tire_data():
 
     except FileNotFoundError as e:
         st.error(f"Lỗi không tìm thấy file: **{e.filename}**. Vui lòng kiểm tra lại tên file.")
-        return pd.DataFrame() # Trả về DataFrame rỗng nếu có lỗi
+        return pd.DataFrame()
     except Exception as e:
         st.error(f"Đã có lỗi xảy ra khi đọc file: {e}")
         return pd.DataFrame()
@@ -69,17 +68,22 @@ df_master = load_tire_data()
 st.title("️🚗 BỘ CÔNG CỤ TRA CỨU LỐP XE LINGLONG")
 st.markdown("Xây dựng bởi **Chuyên Gia Lốp Thầm Lặng** - Dành cho những lựa chọn sáng suốt.")
 
-# THÊM TÍNH NĂNG: Thanh bên để nhập API Key
+# Thanh bên để nhập API Key
 with st.sidebar:
     st.header("Cấu hình AI (Tùy chọn)")
-    st.markdown("Để bật tính năng gợi ý xe tự động, hãy lấy API Key của bạn từ [Google AI Studio](https://aistudio.google.com/app/apikey) và dán vào đây.")
-    google_api_key = st.text_input("Google AI Studio API Key", type="password")
+    st.markdown("Để bật tính năng viết bài giới thiệu, hãy lấy API Key của bạn từ [Google AI Studio](https://aistudio.google.com/app/apikey) và dán vào đây.")
+    google_api_key = st.text_input("Google AI Studio API Key", type="password", key="api_key_input")
     if google_api_key:
         try:
             genai.configure(api_key=google_api_key)
+            st.session_state.api_configured = True
             st.success("Đã kết nối với Google AI!")
         except Exception as e:
-            st.error("API Key không hợp lệ. Vui lòng kiểm tra lại.")
+            st.session_state.api_configured = False
+            st.error("API Key không hợp lệ hoặc có lỗi.")
+
+if 'api_configured' not in st.session_state:
+    st.session_state.api_configured = False
 
 if df_master.empty:
     st.warning("Không thể khởi động ứng dụng do lỗi tải dữ liệu. Vui lòng kiểm tra lại thông báo lỗi ở trên.")
@@ -108,45 +112,45 @@ else:
                 results = results.sort_values(by="gia_ban_le")
 
             st.write("---")
-            
-            # THÊM TÍNH NĂNG: Tích hợp AI để tìm xe phù hợp
-            if google_api_key and not results.empty:
-                with st.expander("🤖 **Gợi ý các dòng xe tương thích (từ Google AI)**", expanded=True):
-                    try:
-                        model = genai.GenerativeModel('gemini-1.5-flash')
-                        prompt = f"Liệt kê các dòng xe phổ biến tại Việt Nam sử dụng lốp size {search_term}. Chỉ cần liệt kê, không cần giải thích thêm."
-                        
-                        with st.spinner("AI đang tìm kiếm..."):
-                            response = model.generate_content(prompt)
-                            st.markdown(response.text)
-                    except Exception as e:
-                        st.error(f"Lỗi khi gọi AI. Vui lòng kiểm tra lại API Key.")
-            
             st.subheader(f"Kết quả tra cứu cho \"{search_term}\"")
             
             if not results.empty:
                 st.success(f"Đã tìm thấy **{len(results)}** sản phẩm phù hợp.")
                 
-                # Hiển thị kết quả dạng bảng
+                # Hiển thị kết quả
                 for index, row in results.iterrows():
-                    st.markdown(f"#### {row['quy_cach']} / {row['ma_gai']}")
-                    
                     price_str = f"{row['gia_ban_le']:,} VNĐ" if pd.notna(row['gia_ban_le']) else "Chưa có giá"
-                    link_str = f"<a href='{row['link_hinh_anh']}' target='_blank'>Xem Hình Ảnh/Video</a>" if row['link_hinh_anh'] not in ['Chưa có thông tin', ''] else "Không có"
-
-                    # SỬA ĐỔI GIAO DIỆN: Bỏ "Phân loại", hiển thị gọn gàng
-                    col1, col2 = st.columns([1, 3])
-                    with col1:
-                        st.markdown("**Giá Bán Lẻ**")
-                        st.markdown("**Ứng dụng cụ thể**")
-                        st.markdown("**Ưu điểm cốt lõi**")
-                        st.markdown("**Media**")
-                    with col2:
-                        st.markdown(f"**{price_str}**")
-                        st.markdown(row['ung_dung_cu_the'])
-                        st.markdown(row['uu_diem_cot_loi'])
-                        st.markdown(link_str, unsafe_allow_html=True)
                     
+                    col_title, col_price = st.columns([3, 1])
+                    with col_title:
+                        st.markdown(f"#### {row['quy_cach']} / {row['ma_gai']}")
+                    with col_price:
+                        st.markdown(f"<div style='text-align: right; font-size: 1.2em; color: #28a745; font-weight: bold;'>{price_str}</div>", unsafe_allow_html=True)
+
+                    # THAY ĐỔI: Dùng AI để viết bài giới thiệu
+                    if st.session_state.api_configured:
+                        with st.expander("📝 **AI Viết Bài Giới Thiệu (Nhấn để xem)**"):
+                            try:
+                                model = genai.GenerativeModel('gemini-1.5-pro-latest')
+                                # Tạo prompt thông minh hơn bằng cách kết hợp dữ liệu có sẵn
+                                prompt = (
+                                    f"Với vai trò là một chuyên gia marketing cho hãng lốp Linglong, hãy viết một đoạn giới thiệu sản phẩm ngắn gọn (khoảng 3-4 câu), "
+                                    f"chuyên nghiệp và hấp dẫn cho lốp xe Linglong, size {row['quy_cach']}, mã gai {row['ma_gai']}. "
+                                    f"Trong bài viết, hãy khéo léo nhấn mạnh các ưu điểm sau: '{row['uu_diem_cot_loi']}'. "
+                                    f"Gợi ý rằng sản phẩm này phù hợp cho: '{row['ung_dung_cu_the']}'. "
+                                    f"Giữ giọng văn chuyên gia, đáng tin cậy."
+                                )
+                                
+                                with st.spinner("AI đang sáng tạo nội dung..."):
+                                    response = model.generate_content(prompt)
+                                    st.markdown(response.text)
+                            except Exception as e:
+                                st.error(f"Lỗi khi gọi AI: {e}")
+                    else:
+                        # Hiển thị thông tin cơ bản nếu không có API
+                         st.markdown(f"**Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
+
+
                     st.write("---")
 
             else:
