@@ -156,6 +156,18 @@ else:
                         st.markdown(f"{desc}")
                     else:
                         st.markdown(f"**👍 Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
+
+                    # THÊM TÍNH NĂNG: Báo giá khuyến mãi
+                    if pd.notna(row['gia_ban_le']):
+                        with st.container():
+                            st.markdown("🎁 **Báo giá khuyến mãi:**")
+                            price_for_2 = (row['gia_ban_le'] * 2) * 0.95
+                            price_for_4 = (row['gia_ban_le'] * 4) * 0.90
+                            promo_col1, promo_col2 = st.columns(2)
+                            with promo_col1:
+                                st.markdown(f"&nbsp;&nbsp;&nbsp;• Mua 2 lốp (giảm 5%): **<span style='color: #ff4b4b;'>{price_for_2:,.0f} VNĐ</span>**", unsafe_allow_html=True)
+                            with promo_col2:
+                                st.markdown(f"&nbsp;&nbsp;&nbsp;• Mua 4 lốp (giảm 10%): **<span style='color: #ff4b4b;'>{price_for_4:,.0f} VNĐ</span>**", unsafe_allow_html=True)
                     
                     st.markdown("---")
 
@@ -165,6 +177,8 @@ else:
                 col_cta_1, col_cta_2 = st.columns([2,1])
                 with col_cta_1:
                     st.markdown("📞 **HOTLINE:** **0943 24 24 24**")
+                    # THÊM TÍNH NĂNG: Link Zalo
+                    st.markdown("💬 **Zalo:** [https://zalo.me/0943242424](https://zalo.me/0943242424)")
                     st.markdown("📍 **Địa chỉ:** 114 Đường Số 2, Trường Thọ, Thủ Đức, TPHCM")
                 with col_cta_2:
                     try:
