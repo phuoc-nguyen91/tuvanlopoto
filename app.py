@@ -117,7 +117,28 @@ else:
                         st.markdown(f"#### {row['quy_cach']} / {row['ma_gai']}")
                     with col_price:
                         st.markdown(f"<div style='text-align: right; font-size: 1.2em; color: #28a745; font-weight: bold;'>{price_str}</div>", unsafe_allow_html=True)
-                    st.markdown(f"**👍 Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
+                    
+                    # THAY ĐỔI: Sử dụng AI để tạo nội dung cho phần "Ưu điểm cốt lõi"
+                    if api_configured:
+                        try:
+                            # Tối ưu prompt để AI trả lời đúng trọng tâm
+                            prompt = (
+                                f"Với vai trò là một chuyên gia tư vấn lốp xe, hãy viết một đoạn ngắn (2-3 câu) nêu bật các ưu điểm cốt lõi của lốp Linglong có thông số {row['quy_cach']} và mã gai {row['ma_gai']}. "
+                                f"Sau đó, liệt kê dưới dạng gạch đầu dòng một vài dòng xe phổ biến tại Việt Nam thường sử dụng loại lốp này."
+                                f"Sử dụng thông tin gợi ý sau nếu có: {row['uu_diem_cot_loi']}."
+                            )
+                            model = genai.GenerativeModel('gemini-1.5-pro-latest')
+                            with st.spinner("AI đang phân tích sản phẩm..."):
+                                response = model.generate_content(prompt)
+                                st.markdown(response.text)
+                        except Exception as e:
+                            # Nếu AI lỗi, hiển thị thông tin có sẵn
+                            st.markdown(f"**👍 Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
+                            st.warning(f"Không thể tải gợi ý từ AI: {e}")
+                    else:
+                        # Hiển thị thông tin mặc định nếu không có API key
+                        st.markdown(f"**👍 Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
+                    #st.markdown(f"**👍 Ưu điểm cốt lõi:** {row['uu_diem_cot_loi']}")
                     if pd.notna(row['gia_ban_le']):
                         with st.container():
                             st.markdown("🎁 **Báo giá khuyến mãi:**")
